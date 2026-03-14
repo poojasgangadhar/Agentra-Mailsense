@@ -11,8 +11,12 @@
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/dashboard", "dest": "/public/dashboard.html" },
+    { "src": "/api/login", "dest": "/api/login.js" },
+    { "src": "/api/signup-send-otp", "dest": "/api/signup-send-otp.js" },
+    { "src": "/api/signup-verify-otp", "dest": "/api/signup-verify-otp.js" },
+    { "src": "/api/forgot-send-otp", "dest": "/api/forgot-send-otp.js" },
+    { "src": "/api/forgot-verify-otp", "dest": "/api/forgot-verify-otp.js" },
+    { "src": "/api/forgot-reset-password", "dest": "/api/forgot-reset-password.js" },
     { "src": "/dashboard.html", "dest": "/public/dashboard.html" },
     { "src": "/", "dest": "/public/index.html" },
     { "src": "/(.*)", "dest": "/public/$1" }
