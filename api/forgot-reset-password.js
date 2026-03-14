@@ -1,5 +1,5 @@
 // api/forgot-reset-password.js
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { sql, initDB }           = require('./_db');
 const { getOTP, deleteOTP }     = require('./_otpStore');
 

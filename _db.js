@@ -1,6 +1,6 @@
 // api/_db.js — shared database helper
-const { sql } = require('@vercel/postgres');
-
+const { neon } = require('@neondatabase/serverless');
+const sql = neon(process.env.DATABASE_URL);
 // Create users table if it doesn't exist
 async function initDB() {
   await sql`
