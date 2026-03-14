@@ -1,15 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "api/*.js",
-      "use": "@vercel/node"
-    }
-  ],
   "routes": [
     { "src": "/api/login", "dest": "/api/login.js" },
     { "src": "/api/signup-send-otp", "dest": "/api/signup-send-otp.js" },
