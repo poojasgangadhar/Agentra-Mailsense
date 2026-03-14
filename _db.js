@@ -1,7 +1,7 @@
-// api/_db.js — shared database helper
 const { neon } = require('@neondatabase/serverless');
+
 const sql = neon(process.env.DATABASE_URL);
-// Create users table if it doesn't exist
+
 async function initDB() {
   await sql`
     CREATE TABLE IF NOT EXISTS users (
@@ -11,6 +11,16 @@ async function initDB() {
       email      TEXT UNIQUE NOT NULL,
       password   TEXT NOT NULL,
       role       TEXT DEFAULT 'User',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS otp_store (
+      key        TEXT PRIMARY KEY,
+      otp        TEXT NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      attempts   INTEGER DEFAULT 0,
+      extra      TEXT DEFAULT '{}',
       created_at TIMESTAMP DEFAULT NOW()
     );
   `;
