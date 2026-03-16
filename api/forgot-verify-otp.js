@@ -2,6 +2,7 @@
 const { getOTP, incrementAttempts, deleteOTP, markVerified } = require('./_otpStore');
 
 module.exports = async (req, res) => {
+  if (typeof req.body === 'string') req.body = JSON.parse(req.body);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

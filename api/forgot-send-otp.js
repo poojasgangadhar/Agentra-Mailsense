@@ -4,6 +4,7 @@ const { generateOTP, sendOTP } = require('./_mailer');
 const { saveOTP, getOTP }      = require('./_otpStore');
 
 module.exports = async (req, res) => {
+  if (typeof req.body === 'string') req.body = JSON.parse(req.body);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,11 +17,9 @@ module.exports = async (req, res) => {
   try {
     await initDB();
     const user = await sql`SELECT id FROM users WHERE email = ${email}`;
-    // Always say sent — don't reveal if email exists
     if (user.rows.length === 0)
       return res.json({ success: true, message: 'If this email exists, a code has been sent.' });
 
-    // Rate limit
     const existingOTP = await getOTP(`forgot_${email}`);
     if (existingOTP) {
       const age  = Date.now() - (existingOTP.expiresAt - 10 * 60 * 1000);

@@ -4,6 +4,7 @@ const { sql, initDB } = require('./_db');
 const { getOTP, incrementAttempts, deleteOTP } = require('./_otpStore');
 
 module.exports = async (req, res) => {
+  if (typeof req.body === 'string') req.body = JSON.parse(req.body);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -30,7 +31,6 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: `Invalid verification code. ${left} attempt${left !== 1 ? 's' : ''} remaining.` });
     }
 
-    // ✅ OTP correct — create account
     await initDB();
     const { first_name, last_name, password } = record.extra;
     const hashed = await bcrypt.hash(password, 10);
