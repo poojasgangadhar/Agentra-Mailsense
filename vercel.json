@@ -1,4 +1,4 @@
-{
+echo {
   "version": 2,
   "routes": [
     { "src": "/api/login", "dest": "/api/login.js" },
@@ -7,8 +7,6 @@
     { "src": "/api/forgot-send-otp", "dest": "/api/forgot-send-otp.js" },
     { "src": "/api/forgot-verify-otp", "dest": "/api/forgot-verify-otp.js" },
     { "src": "/api/forgot-reset-password", "dest": "/api/forgot-reset-password.js" },
-    { "src": "/dashboard.html", "dest": "/public/dashboard.html" },
-    { "src": "/", "dest": "/public/index.html" },
     { "src": "/(.*)", "dest": "/public/$1" }
   ]
-}
+} > vercel.json
