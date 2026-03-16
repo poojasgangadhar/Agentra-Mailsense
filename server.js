@@ -1,7 +1,3 @@
-app.get("/", (req, res) => {
-  res.send("Agentra MailSense API is running");
-});
-
 require('dotenv').config();
 const express    = require('express');
 const nodemailer = require('nodemailer');
@@ -11,6 +7,10 @@ const Database   = require('better-sqlite3');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("Agentra MailSense API is running");
+});
 
 app.use(cors());
 app.use(express.json());
@@ -113,12 +113,10 @@ app.post('/signup/send-otp', async (req, res) => {
   if (password.length < 8)
     return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
-  // Check email not already registered
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (existing)
     return res.status(409).json({ error: 'An account with this email already exists.' });
 
-  // Rate limit: 1 OTP per 60 seconds
   const existingOTP = otpStore[`signup_${email}`];
   if (existingOTP) {
     const wait = Math.ceil(60 - (Date.now() - existingOTP.lastSentAt) / 1000);
@@ -126,17 +124,14 @@ app.post('/signup/send-otp', async (req, res) => {
   }
 
   const otp = generateOTP();
-
-  // Store OTP + user details temporarily (until verified)
   otpStore[`signup_${email}`] = {
     otp,
     expiresAt:   Date.now() + 10 * 60 * 1000,
     attempts:    0,
     lastSentAt:  Date.now(),
-    // Store pending user data
     first_name,
     last_name,
-    password, // will be hashed on verify
+    password,
   };
 
   try {
@@ -157,7 +152,6 @@ app.post('/signup/send-otp', async (req, res) => {
 
 // ════════════════════════════════════════
 //  ROUTE: POST /signup/verify-otp
-//  Step 2 of signup — verify OTP and create account
 // ════════════════════════════════════════
 app.post('/signup/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
@@ -167,23 +161,19 @@ app.post('/signup/verify-otp', async (req, res) => {
 
   const record = otpStore[`signup_${email}`];
 
-  // No OTP found
   if (!record)
     return res.status(400).json({ error: 'No verification code found. Please request a new one.' });
 
-  // Expired
   if (Date.now() > record.expiresAt) {
     delete otpStore[`signup_${email}`];
     return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
   }
 
-  // Too many wrong attempts
   if (record.attempts >= 5) {
     delete otpStore[`signup_${email}`];
     return res.status(400).json({ error: 'Too many wrong attempts. Please request a new code.' });
   }
 
-  // Wrong OTP
   if (record.otp !== otp.toString().trim()) {
     otpStore[`signup_${email}`].attempts++;
     const left = 5 - otpStore[`signup_${email}`].attempts;
@@ -192,13 +182,12 @@ app.post('/signup/verify-otp', async (req, res) => {
     });
   }
 
-  // ✅ OTP correct — create account now
   try {
     const hashed = await bcrypt.hash(record.password, 10);
     db.prepare('INSERT INTO users (first_name, last_name, email, password) VALUES (?, ?, ?, ?)')
       .run(record.first_name, record.last_name, email, hashed);
 
-    delete otpStore[`signup_${email}`]; // clean up
+    delete otpStore[`signup_${email}`];
     console.log(`✅ Account created: ${email}`);
 
     res.json({ success: true, message: 'Account created successfully! You can now sign in.' });
@@ -326,9 +315,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: Math.floor(process.uptime()) + 's', users: count });
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
+
 // Clean expired OTPs every 5 mins
 setInterval(() => {
   const now = Date.now();
