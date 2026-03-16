@@ -2,6 +2,7 @@
   "name": "agentra-mailsense",
   "version": "1.0.0",
   "description": "Agentra MailSense – Agentic Email Automation",
+  "main": "api/login.js",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "nodemailer": "^6.9.13",
