@@ -6,15 +6,13 @@
       "maxDuration": 10
     }
   },
-  "routes": [
-    { "src": "/api/login", "dest": "/api/login.js" },
-    { "src": "/api/signup-send-otp", "dest": "/api/signup-send-otp.js" },
-    { "src": "/api/signup-verify-otp", "dest": "/api/signup-verify-otp.js" },
-    { "src": "/api/forgot-send-otp", "dest": "/api/forgot-send-otp.js" },
-    { "src": "/api/forgot-verify-otp", "dest": "/api/forgot-verify-otp.js" },
-    { "src": "/api/forgot-reset-password", "dest": "/api/forgot-reset-password.js" },
-    { "src": "/dashboard.html", "dest": "/public/dashboard.html" },
-    { "src": "/", "dest": "/public/index.html" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+  "rewrites": [
+    { "source": "/api/login", "destination": "/api/login.js" },
+    { "source": "/api/signup-send-otp", "destination": "/api/signup-send-otp.js" },
+    { "source": "/api/signup-verify-otp", "destination": "/api/signup-verify-otp.js" },
+    { "source": "/api/forgot-send-otp", "destination": "/api/forgot-send-otp.js" },
+    { "source": "/api/forgot-verify-otp", "destination": "/api/forgot-verify-otp.js" },
+    { "source": "/api/forgot-reset-password", "destination": "/api/forgot-reset-password.js" },
+    { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
