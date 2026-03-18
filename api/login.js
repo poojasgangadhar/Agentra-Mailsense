@@ -3,7 +3,7 @@ const bcrypt   = require('bcrypt');
 const { sql, initDB } = require('./_db');
 
 module.exports = async (req, res) => {
-  // CORS headers
+  if (typeof req.body === 'string') req.body = JSON.parse(req.body);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -17,11 +17,9 @@ module.exports = async (req, res) => {
     await initDB();
     const result = await sql`SELECT * FROM users WHERE email = ${email}`;
     if (result.rows.length === 0) return res.status(401).json({ error: 'No account found with this email.' });
-
     const user  = result.rows[0];
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ error: 'Incorrect password. Please try again.' });
-
     console.log(`✅ Login: ${email}`);
     res.json({
       success: true,
