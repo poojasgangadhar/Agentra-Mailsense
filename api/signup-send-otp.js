@@ -1,9 +1,9 @@
-// api/signup-send-otp.js
-const { sql, initDB }           = require('./_db');
-const { generateOTP, sendOTP }  = require('./_mailer');
-const { saveOTP, getOTP }       = require('./_otpStore');
+const { sql, initDB } = require('./_db');
+const { generateOTP, sendOTP } = require('./_mailer');
+const { saveOTP, getOTP } = require('./_otpStore');
 
 module.exports = async (req, res) => {
+  if (typeof req.body === 'string') req.body = JSON.parse(req.body);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -22,7 +22,6 @@ module.exports = async (req, res) => {
     if (existing.rows.length > 0)
       return res.status(409).json({ error: 'An account with this email already exists.' });
 
-    // Rate limit
     const existingOTP = await getOTP(`signup_${email}`);
     if (existingOTP) {
       const age = Date.now() - (existingOTP.expiresAt - 10 * 60 * 1000);
@@ -38,7 +37,7 @@ module.exports = async (req, res) => {
     });
 
     await sendOTP(email, otp, 'signup');
-    console.log(`✅ Signup OTP sent → ${email}`);
+    console.log(`Signup OTP sent to ${email}`);
     res.json({ success: true, message: 'Verification code sent to your email!' });
 
   } catch (err) {
