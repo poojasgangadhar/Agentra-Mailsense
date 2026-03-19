@@ -1,5 +1,5 @@
 // api/forgot-verify-otp.js
-const { getOTP, incrementAttempts, deleteOTP, markVerified } = require('./_otpStore');
+const { getOTP, incrementAttempts, deleteOTP, markVerified } = require('./_otpStore2');
 
 module.exports = async (req, res) => {
   let body = req.body;

@@ -1,7 +1,7 @@
 // api/signup-send-otp.js
 const { sql, initDB } = require('./_db');
 const { generateOTP, sendOTP } = require('./_mailer');
-const { saveOTP, getOTP } = require('./_otpStore');
+const { saveOTP, getOTP } = require('./_otpStore2');
 
 module.exports = async (req, res) => {
   let body = req.body;

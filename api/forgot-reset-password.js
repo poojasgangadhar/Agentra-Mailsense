@@ -1,7 +1,7 @@
 // api/forgot-reset-password.js
 const bcrypt = require('bcryptjs');
 const { sql, initDB } = require('./_db');
-const { getOTP, deleteOTP } = require('./_otpStore');
+const { getOTP, deleteOTP } = require('./_otpStore2');
 
 module.exports = async (req, res) => {
   let body = req.body;
