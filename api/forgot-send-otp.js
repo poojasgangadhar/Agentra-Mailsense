@@ -1,28 +1,30 @@
 // api/forgot-send-otp.js
-const { sql, initDB }          = require('./_db');
+const { sql, initDB } = require('./_db');
 const { generateOTP, sendOTP } = require('./_mailer');
-const { saveOTP, getOTP }      = require('./_otpStore');
+const { saveOTP, getOTP } = require('./_otpStore');
 
 module.exports = async (req, res) => {
-  if (typeof req.body === 'string') req.body = JSON.parse(req.body);
+  let body = req.body;
+  if (typeof body === 'string') body = JSON.parse(body);
+  if (!body) body = {};
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
-  const { email } = req.body;
+  const { email } = body;
   if (!email) return res.status(400).json({ error: 'Email is required.' });
 
   try {
     await initDB();
     const user = await sql`SELECT id FROM users WHERE email = ${email}`;
-    if (user.rows.length === 0)
+    if (user.length === 0)
       return res.json({ success: true, message: 'If this email exists, a code has been sent.' });
 
     const existingOTP = await getOTP(`forgot_${email}`);
     if (existingOTP) {
-      const age  = Date.now() - (existingOTP.expiresAt - 10 * 60 * 1000);
+      const age = Date.now() - (existingOTP.expiresAt - 10 * 60 * 1000);
       const wait = Math.ceil(60 - age / 1000);
       if (wait > 0) return res.status(429).json({ error: `Please wait ${wait}s before requesting again.` });
     }

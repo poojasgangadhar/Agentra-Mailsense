@@ -2,19 +2,20 @@
 const { getOTP, incrementAttempts, deleteOTP, markVerified } = require('./_otpStore');
 
 module.exports = async (req, res) => {
-  if (typeof req.body === 'string') req.body = JSON.parse(req.body);
+  let body = req.body;
+  if (typeof body === 'string') body = JSON.parse(body);
+  if (!body) body = {};
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
-  const { email, otp } = req.body;
+  const { email, otp } = body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required.' });
 
   try {
     const record = await getOTP(`forgot_${email}`);
-
     if (!record)
       return res.status(400).json({ error: 'No code found. Please request a new one.' });
     if (Date.now() > record.expiresAt) {

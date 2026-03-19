@@ -1,17 +1,17 @@
+// api/signup-send-otp.js
 const { sql, initDB } = require('./_db');
 const { generateOTP, sendOTP } = require('./_mailer');
 const { saveOTP, getOTP } = require('./_otpStore');
 
 module.exports = async (req, res) => {
+  let body = req.body;
+  if (typeof body === 'string') body = JSON.parse(body);
+  if (!body) body = {};
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
-
-  let body = req.body;
-  if (typeof body === 'string') body = JSON.parse(body);
-  if (!body) return res.status(400).json({ error: 'Request body is missing.' });
 
   const { first_name, last_name, email, password } = body;
   if (!first_name || !last_name || !email || !password)
@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
   try {
     await initDB();
     const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
-    if (existing.rows.length > 0)
+    if (existing.length > 0)
       return res.status(409).json({ error: 'An account with this email already exists.' });
 
     const existingOTP = await getOTP(`signup_${email}`);
