@@ -1,6 +1,4 @@
 // api/_otpStore.js
-// Note: Vercel serverless functions are stateless.
-// We store OTPs in Vercel Postgres so they persist across function calls.
 const { sql, initDB } = require('./_db');
 
 async function saveOTP(key, data) {
@@ -19,19 +17,9 @@ async function saveOTP(key, data) {
 
 async function getOTP(key) {
   await initDB();
-  await sql`
-    CREATE TABLE IF NOT EXISTS otp_store (
-      key        TEXT PRIMARY KEY,
-      otp        TEXT NOT NULL,
-      expires_at TIMESTAMP NOT NULL,
-      attempts   INTEGER DEFAULT 0,
-      extra      TEXT DEFAULT '{}',
-      created_at TIMESTAMP DEFAULT NOW()
-    );
-  `;
   const result = await sql`SELECT * FROM otp_store WHERE key = ${key}`;
-  if (result.rows.length === 0) return null;
-  const row = result.rows[0];
+  if (result.length === 0) return null;
+  const row = result[0];
   return {
     otp:       row.otp,
     expiresAt: new Date(row.expires_at).getTime(),
