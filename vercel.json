@@ -13,6 +13,7 @@
     { "source": "/api/forgot-send-otp", "destination": "/api/forgot-send-otp.js" },
     { "source": "/api/forgot-verify-otp", "destination": "/api/forgot-verify-otp.js" },
     { "source": "/api/forgot-reset-password", "destination": "/api/forgot-reset-password.js" },
+    { "source": "/api/delete-account", "destination": "/api/delete-account.js" },
     { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
