@@ -6,6 +6,14 @@
       "maxDuration": 10
     }
   },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/login", "destination": "/api/login.js" },
     { "source": "/api/signup-send-otp", "destination": "/api/signup-send-otp.js" },
