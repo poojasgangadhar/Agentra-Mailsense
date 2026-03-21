@@ -32,6 +32,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,0.3);border-top-color:currentColor;border-radius:50%;animation:spin 0.7s linear infinite;}
 
 /* ONBOARDING */
 .onboarding{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;}
@@ -90,8 +92,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .nav-badge.red{background:var(--red);}
 .nav-badge.amber{background:var(--amber);}
 .sidebar.collapsed .nav-badge{opacity:0;}
-
-/* NOTIFICATION NAV ITEM - special styling */
 .nav-item.notif-item{background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.15);color:var(--red);}
 .nav-item.notif-item:hover{background:rgba(248,113,113,0.12);color:var(--red);}
 .nav-item.notif-item.active{background:rgba(248,113,113,0.15);color:var(--red);}
@@ -99,8 +99,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .notif-count{margin-left:auto;background:var(--red);color:white;font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;animation:notif-pulse 2s infinite;transition:opacity 0.2s;}
 @keyframes notif-pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,0.4);}50%{box-shadow:0 0 0 4px rgba(248,113,113,0);}}
 .sidebar.collapsed .notif-count{opacity:0;}
-
-/* MODE TOGGLE */
 .mode-tgl{margin:8px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;overflow:hidden;}
 .mode-lbl{font-size:0.62rem;font-weight:600;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;white-space:nowrap;transition:opacity 0.2s,height 0.3s;}
 .sidebar.collapsed .mode-lbl{opacity:0;height:0;margin:0;}
@@ -113,8 +111,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .mbtn.fast.active{background:var(--amber);color:#000;}
 .mbtn.safe{background:rgba(45,212,191,0.08);color:var(--teal);border:1px solid rgba(45,212,191,0.18);}
 .mbtn.safe.active{background:var(--teal);color:#000;}
-
-/* SIDEBAR BOTTOM */
 .sb-bottom{padding:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:4px;}
 .sb-user{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;overflow:hidden;}
 .u-avatar{width:30px;height:30px;min-width:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--teal));display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:600;color:white;flex-shrink:0;}
@@ -127,11 +123,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .logout-btn svg{width:15px;height:15px;flex-shrink:0;}
 .lo-lbl{transition:opacity 0.2s,width 0.3s;}
 .sidebar.collapsed .lo-lbl{opacity:0;width:0;}
-
-/* MAIN */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
-
-/* TOPBAR */
 .topbar{height:56px;min-height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:8px;}
 .collapse-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;padding:6px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;}
 .collapse-btn:hover{background:var(--surface2);color:var(--accent);border-color:var(--accent);}
@@ -144,26 +136,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .mode-pill{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;white-space:nowrap;}
 .mode-pill.fast{background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);color:var(--amber);}
 .mode-pill.safe{background:rgba(45,212,191,0.1);border:1px solid rgba(45,212,191,0.25);color:var(--teal);}
-
-/* THEME TOGGLE BUTTON - prominent */
-.theme-toggle-btn{
-  display:flex;align-items:center;gap:7px;
-  padding:6px 12px;border-radius:20px;
-  border:1.5px solid var(--border2);
-  background:var(--surface2);
-  color:var(--text-muted);
-  cursor:pointer;transition:all 0.2s;
-  font-family:inherit;font-size:0.75rem;font-weight:500;
-  flex-shrink:0;
-}
+.theme-toggle-btn{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;border:1.5px solid var(--border2);background:var(--surface2);color:var(--text-muted);cursor:pointer;transition:all 0.2s;font-family:inherit;font-size:0.75rem;font-weight:500;flex-shrink:0;}
 .theme-toggle-btn:hover{background:var(--surface3);border-color:var(--accent);color:var(--accent);}
 .theme-toggle-btn svg{width:14px;height:14px;flex-shrink:0;}
 .theme-toggle-btn .theme-label{white-space:nowrap;}
-
-/* CONTENT */
 .content{flex:1;overflow-y:auto;padding:14px;}
-
-/* STATS */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;transition:border-color 0.2s,transform 0.2s;}
 .stat-card:hover{border-color:var(--border2);transform:translateY(-1px);}
@@ -178,31 +155,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .stat-sub{font-size:0.7rem;color:var(--text-muted);margin-top:5px;}
 .stat-icon{position:absolute;right:14px;top:14px;opacity:0.07;}
 .stat-icon svg{width:36px;height:36px;}
-
-/* PANELS */
 .two-col{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;}
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;}
 .panel-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
 .panel-title{font-size:0.82rem;font-weight:600;color:var(--text);flex:1;}
 .panel-badge{font-size:0.65rem;font-weight:500;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);}
-
-/* MODE BANNER */
 .mode-banner{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;margin-bottom:14px;font-size:0.82rem;}
 .mode-banner.fast{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);color:var(--amber);}
 .mode-banner.safe{background:rgba(45,212,191,0.06);border:1px solid rgba(45,212,191,0.18);color:var(--teal);}
 .mode-banner strong{font-weight:600;}
 .mode-banner p{color:var(--text-muted);font-size:0.77rem;margin-top:2px;}
-
-/* DRAFTS */
 .draft-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px;}
 .draft-to{font-size:0.78rem;font-weight:500;color:var(--text);}
 .draft-preview{font-size:0.73rem;color:var(--text-muted);margin-top:3px;line-height:1.4;}
 .draft-actions{display:flex;gap:6px;margin-top:10px;}
 .draft-send{padding:5px 12px;border-radius:6px;border:none;background:var(--teal);color:white;font-family:inherit;font-size:0.73rem;font-weight:500;cursor:pointer;}
 .draft-discard{padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:none;color:var(--text-muted);font-family:inherit;font-size:0.73rem;cursor:pointer;}
-
-/* EMAILS */
-.email-list{max-height:320px;overflow-y:auto;}
+.email-list{max-height:380px;overflow-y:auto;}
 .email-item{display:flex;align-items:flex-start;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s;}
 .email-item:last-child{border-bottom:none;}
 .email-item:hover{background:var(--surface2);}
@@ -211,20 +180,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .e-body{flex:1;min-width:0;}
 .e-from{font-size:0.77rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .e-subject{font-size:0.72rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.e-snippet{font-size:0.68rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
 .e-time{font-size:0.65rem;color:var(--text-dim);flex-shrink:0;margin-top:2px;}
 .e-tag{font-size:0.59rem;font-weight:600;padding:2px 6px;border-radius:6px;margin-top:4px;display:inline-block;letter-spacing:0.04em;text-transform:uppercase;}
 .tag-important{background:rgba(79,110,247,0.15);color:var(--accent2);border:1px solid rgba(79,110,247,0.25);}
 .tag-spam{background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.22);}
 .tag-promo{background:rgba(245,158,11,0.12);color:var(--amber);border:1px solid rgba(245,158,11,0.22);}
 .tag-replied{background:rgba(52,211,153,0.1);color:var(--green);border:1px solid rgba(52,211,153,0.2);}
-
-/* TOOLBAR */
 .del-toolbar{padding:10px 16px;background:rgba(248,113,113,0.06);border-bottom:1px solid rgba(248,113,113,0.15);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .del-toolbar span{font-size:0.77rem;color:var(--text-muted);flex:1;}
 .btn-del{padding:5px 12px;border-radius:6px;border:none;background:var(--red);color:white;font-family:inherit;font-size:0.75rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;}
 .sel-drop{padding:5px 8px;border-radius:7px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:inherit;font-size:0.75rem;cursor:pointer;outline:none;}
-
-/* LOGS */
 .log-list{max-height:280px;overflow-y:auto;padding:6px 0;}
 .log-item{display:flex;align-items:flex-start;gap:10px;padding:7px 16px;font-size:0.73rem;border-bottom:1px solid rgba(99,130,255,0.05);}
 .log-item:last-child{border-bottom:none;}
@@ -236,21 +202,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .log-dot.blue{background:var(--accent2);}
 .log-text{color:var(--text-muted);flex:1;line-height:1.4;}
 .log-text strong{color:var(--text);font-weight:500;}
-
-/* CHART */
 .mini-chart{padding:12px 16px 8px;display:flex;align-items:flex-end;gap:5px;height:90px;}
 .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
 .bar{width:100%;border-radius:3px 3px 0 0;min-height:4px;}
 .bar-lbl{font-size:0.57rem;color:var(--text-dim);}
-
-/* AGENT GRID */
 .agent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px 16px;}
 .agent-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;}
 .ac-title{font-size:0.67rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;}
 .ac-val{font-family:'DM Serif Display',serif;font-size:1.3rem;color:var(--text);}
 .ac-sub{font-size:0.67rem;color:var(--text-dim);margin-top:2px;}
-
-/* ACTIONS */
 .action-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
 .action-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-family:inherit;font-size:0.77rem;font-weight:500;cursor:pointer;transition:all 0.18s;}
 .action-btn:hover{background:var(--surface3);border-color:var(--accent);color:var(--accent2);}
@@ -261,8 +221,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .action-btn.danger:hover{background:rgba(248,113,113,0.1);border-color:var(--red);}
 .action-btn.teal{border-color:rgba(45,212,191,0.3);color:var(--teal);}
 .action-btn.teal:hover{background:rgba(45,212,191,0.08);border-color:var(--teal);}
-
-/* NOTIFICATIONS PAGE */
+.action-btn:disabled{opacity:0.5;cursor:not-allowed;}
 .notif-list{padding:8px 0;}
 .notif-item-card{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);transition:background 0.15s;cursor:pointer;}
 .notif-item-card:hover{background:var(--surface2);}
@@ -275,8 +234,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .notif-title{font-size:0.8rem;font-weight:500;color:var(--text);margin-bottom:3px;}
 .notif-desc{font-size:0.74rem;color:var(--text-muted);line-height:1.4;}
 .notif-time{font-size:0.67rem;color:var(--text-dim);margin-top:4px;}
-
-/* GMAIL */
 .gmail-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;text-align:center;margin-bottom:14px;}
 .gmail-icon{width:56px;height:56px;margin:0 auto 16px;background:rgba(234,67,53,0.1);border:1px solid rgba(234,67,53,0.2);border-radius:14px;display:flex;align-items:center;justify-content:center;}
 .gmail-title{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--text);margin-bottom:8px;}
@@ -288,8 +245,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .gcc-title{font-size:0.84rem;font-weight:500;color:var(--text);}
 .gcc-sub{font-size:0.73rem;color:var(--text-muted);margin-top:2px;}
 .disconnect-btn{padding:6px 12px;border-radius:7px;border:1px solid rgba(248,113,113,0.3);background:none;color:var(--red);font-family:inherit;font-size:0.75rem;cursor:pointer;}
-
-/* SETTINGS */
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);margin-bottom:8px;flex-wrap:wrap;gap:10px;}
 .sr-label{font-size:0.82rem;color:var(--text);font-weight:500;}
 .sr-sub{font-size:0.73rem;color:var(--text-muted);margin-top:2px;}
@@ -304,8 +259,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .dz-desc{font-size:0.77rem;color:var(--text-muted);margin-bottom:14px;line-height:1.5;}
 .del-acc-btn{padding:10px 20px;border-radius:8px;border:1.5px solid var(--red);background:none;color:var(--red);font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:8px;}
 .del-acc-btn:hover{background:var(--red);color:white;}
-
-/* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:380px;width:100%;animation:slideUp 0.3s ease;}
 .modal-title{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--text);margin-bottom:10px;}
@@ -313,12 +266,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .modal-actions{display:flex;gap:10px;}
 .modal-cancel{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-family:inherit;font-size:0.82rem;cursor:pointer;}
 .modal-confirm{flex:1;padding:10px;border-radius:8px;border:none;background:var(--red);color:white;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;}
-
-/* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;font-size:0.79rem;color:var(--text);box-shadow:var(--shadow);z-index:1000;animation:toastIn 0.3s cubic-bezier(0.22,1,0.36,1);display:flex;align-items:center;gap:10px;max-width:320px;}
 @keyframes toastIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.empty-state{padding:36px;text-align:center;color:var(--text-dim);font-size:0.81rem;}
 
-/* MOBILE */
 @media(max-width:768px){
   .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);width:220px !important;min-width:220px !important;}
   .sidebar.open{transform:translateX(0);}
@@ -345,7 +296,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 <script type="text/babel">
 const { useState, useEffect } = React;
 
-const EMAILS = [
+// ── Default dummy data (shown before Gmail connect) ──
+const DUMMY_EMAILS = [
   { id:1, from:'John Smith', email:'john@acmecorp.com', subject:'Q4 Partnership Proposal - Urgent Review', tag:'important', time:'9:42am', color:'#4f6ef7', replied:true },
   { id:2, from:'Priya Sharma', email:'priya@techwave.io', subject:'Re: Integration timeline for Phase 2', tag:'important', time:'9:15am', color:'#2dd4bf', replied:false },
   { id:3, from:'LinkedIn', email:'noreply@linkedin.com', subject:'You have 14 new connection requests this week', tag:'promo', time:'8:50am', color:'#0077b5', replied:false },
@@ -355,7 +307,7 @@ const EMAILS = [
   { id:7, from:'Amazon', email:'shipment@amazon.com', subject:'Your order has been shipped — Track now', tag:'promo', time:'Yesterday', color:'#f59e0b', replied:false },
   { id:8, from:'Raj Patel', email:'raj@startup.in', subject:'Can we schedule a call this week?', tag:'important', time:'Yesterday', color:'#34d399', replied:false },
 ];
-const LOGS = [
+const DUMMY_LOGS = [
   { id:1, time:'09:42', dot:'blue',  text:'Fetched <strong>8 new emails</strong> from Gmail inbox' },
   { id:2, time:'09:42', dot:'blue',  text:'Classified email from <strong>John Smith</strong> → Important' },
   { id:3, time:'09:43', dot:'green', text:'Auto-reply sent to <strong>john@acmecorp.com</strong>' },
@@ -365,7 +317,7 @@ const LOGS = [
   { id:7, time:'09:46', dot:'green', text:'Auto-reply sent to <strong>raj@startup.in</strong>' },
   { id:8, time:'09:47', dot:'green', text:'Moved <strong>2 spam emails</strong> to Bin' },
 ];
-const DRAFTS = [
+const DUMMY_DRAFTS = [
   { id:1, to:'priya@techwave.io', name:'Priya Sharma', preview:'Hi Priya, Thank you for your email. I have reviewed the integration timeline and will get back to you shortly.' },
   { id:2, to:'raj@startup.in', name:'Raj Patel', preview:'Hi Raj, Thanks for reaching out! I would be happy to schedule a call. Please let me know your availability.' },
   { id:3, to:'sarah@designco.com', name:'Sarah Chen', preview:'Hi Sarah, Thank you for sending over the brand refresh assets. I will review them and share feedback soon.' },
@@ -381,6 +333,22 @@ const NOTIFICATIONS = [
   { id:4, icon:'📧', bg:'rgba(79,110,247,0.1)', title:'New important email', desc:'John Smith sent a Q4 Partnership Proposal marked as urgent.', time:'9:42 AM', read:true },
   { id:5, icon:'✅', bg:'rgba(52,211,153,0.1)', title:'Auto-reply sent', desc:'Reply sent to john@acmecorp.com automatically in Fast Mode.', time:'9:43 AM', read:true },
 ];
+
+// ── Helper functions ──
+function strColor(str) {
+  const colors = ['#4f6ef7','#2dd4bf','#f59e0b','#f87171','#a78bfa','#34d399','#fb923c','#60a5fa'];
+  let h = 0; for (let c of (str||'?')) h = c.charCodeAt(0) + ((h<<5)-h);
+  return colors[Math.abs(h) % colors.length];
+}
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr), now = new Date(), diff = now - d;
+    if (diff < 86400000) return d.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:true});
+    if (diff < 604800000) return d.toLocaleDateString('en',{weekday:'short'});
+    return d.toLocaleDateString('en',{month:'short',day:'numeric'});
+  } catch { return ''; }
+}
 
 const Ic = {
   mail:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
@@ -461,23 +429,39 @@ function Onboarding({ onComplete }) {
 }
 
 function App() {
-  const [showOB, setShowOB] = useState(localStorage.getItem('ms_onboarded')!=='true');
-  const [nav, setNav] = useState('dashboard');
-  const [mode, setMode] = useState(localStorage.getItem('ms_mode')||'safe');
-  const [emails, setEmails] = useState(EMAILS);
-  const [logs, setLogs] = useState(LOGS);
-  const [drafts, setDrafts] = useState(DRAFTS);
-  const [notifs, setNotifs] = useState(NOTIFICATIONS);
-  const [selected, setSelected] = useState([]);
-  const [delCat, setDelCat] = useState('');
-  const [toast, setToast] = useState(null);
-  const [sbOpen, setSbOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [theme, setTheme] = useState(()=>localStorage.getItem('ms_theme')||'dark');
-  const [gmailConn, setGmailConn] = useState(false);
+  const [showOB,       setShowOB]       = useState(localStorage.getItem('ms_onboarded')!=='true');
+  const [nav,          setNav]          = useState('dashboard');
+  const [mode,         setMode]         = useState(localStorage.getItem('ms_mode')||'safe');
+  const [emails,       setEmails]       = useState(DUMMY_EMAILS);
+  const [logs,         setLogs]         = useState(DUMMY_LOGS);
+  const [drafts,       setDrafts]       = useState(DUMMY_DRAFTS);
+  const [notifs,       setNotifs]       = useState(NOTIFICATIONS);
+  const [selected,     setSelected]     = useState([]);
+  const [delCat,       setDelCat]       = useState('');
+  const [toast,        setToast]        = useState(null);
+  const [sbOpen,       setSbOpen]       = useState(false);
+  const [collapsed,    setCollapsed]    = useState(false);
+  const [theme,        setTheme]        = useState(()=>localStorage.getItem('ms_theme')||'dark');
+  const [gmailConn,    setGmailConn]    = useState(false);
   const [showDelModal, setShowDelModal] = useState(false);
+  const [loadingEmails,setLoadingEmails]= useState(false);
 
   useEffect(()=>{ document.documentElement.setAttribute('data-theme',theme); localStorage.setItem('ms_theme',theme); },[theme]);
+
+  // ── Check Gmail OAuth callback ──
+  useEffect(()=>{
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gmail_connected')==='true') {
+      setGmailConn(true);
+      t('✅ Gmail connected successfully!','green');
+      window.history.replaceState({},'',(window.location.pathname));
+      fetchRealEmails();
+    }
+    if (params.get('gmail_error')) {
+      t('❌ Gmail connection failed. Try again.','red');
+      window.history.replaceState({},'',(window.location.pathname));
+    }
+  },[]);
 
   const t = (msg,type='green') => setToast({msg,type});
   const toggleSel = id => setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
@@ -488,14 +472,20 @@ function App() {
   const doDelete = () => {
     const n = selected.length;
     setEmails(emails.filter(e=>!selected.includes(e.id)));
-    setLogs([{id:Date.now(),time:new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}),dot:'red',text:`Moved <strong>${n} email${n>1?'s':''}</strong> to Bin`},...logs]);
+    addLog(`Moved <strong>${n} email${n>1?'s':''}</strong> to Bin`,'red');
     setSelected([]); setDelCat('');
     t(`${n} email${n>1?'s':''} moved to Bin`,'red');
   };
 
-  const runAgent = () => {
-    setLogs([{id:Date.now(),time:new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}),dot:'blue',text:`Agent triggered in <strong>${mode} mode</strong>`},...logs]);
+  const addLog = (text, dot='blue') => {
+    const time = new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false});
+    setLogs(l=>[{id:Date.now(),time,dot,text},...l].slice(0,50));
+  };
+
+  const runAgent = async () => {
+    addLog(`Agent triggered in <strong>${mode} mode</strong>`,'blue');
     t(`Agent running in ${mode==='fast'?'⚡ Fast':'🛡️ Safe'} Mode`,mode==='fast'?'amber':'green');
+    if (gmailConn) await fetchRealEmails();
   };
 
   const changeMode = m => { setMode(m); localStorage.setItem('ms_mode',m); t(m==='fast'?'⚡ Switched to Fast Mode':'🛡️ Switched to Safe Mode',m==='fast'?'amber':'green'); };
@@ -512,10 +502,62 @@ function App() {
     setShowDelModal(false);
   };
 
+  // ── REAL Gmail functions ──
+  const connectGmail = () => {
+    const email = sessionStorage.getItem('user_email');
+    if (!email) { t('Please log in first','red'); return; }
+    window.location.href = `/api/auth/connect?email=${encodeURIComponent(email)}`;
+  };
+
+  const fetchRealEmails = async (category='all') => {
+    const email = sessionStorage.getItem('user_email');
+    if (!email) return;
+    setLoadingEmails(true);
+    try {
+      const res = await fetch(`/api/emails/fetch?email=${encodeURIComponent(email)}&category=${category}&maxResults=20`);
+      const data = await res.json();
+      if (data.needsConnect) { setGmailConn(false); return; }
+      if (data.error) throw new Error(data.error);
+      setGmailConn(true);
+      // Convert real Gmail emails to dashboard format
+      const converted = (data.emails||[]).map(e=>({
+        id: e.id,
+        from: e.from?.replace(/<[^>]+>/,'').trim() || 'Unknown',
+        email: e.from?.match(/<([^>]+)>/)?.[1] || e.from || '',
+        subject: e.subject || '(No subject)',
+        tag: e.category==='Important'?'important':e.category==='Spam'?'spam':'promo',
+        time: fmtDate(e.date),
+        color: strColor(e.from||'?'),
+        replied: false,
+        snippet: e.snippet || '',
+        realId: e.id,
+      }));
+      setEmails(converted);
+      addLog(`Fetched <strong>${converted.length} real emails</strong> from Gmail`,'green');
+      t(`✅ Fetched ${converted.length} emails!`,'green');
+    } catch(err) {
+      t('Failed to fetch emails: '+err.message,'red');
+    } finally {
+      setLoadingEmails(false);
+    }
+  };
+
+  const realEmailAction = async (messageId, action) => {
+    const email = sessionStorage.getItem('user_email');
+    try {
+      const res = await fetch('/api/emails/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,messageId,action})});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setEmails(e=>e.filter(em=>em.id!==messageId));
+      addLog(`Email <strong>${action}d</strong> successfully`,action==='delete'?'red':'amber');
+      t(`Email ${action}d!`,action==='delete'?'red':'amber');
+    } catch(err) { t('Action failed: '+err.message,'red'); }
+  };
+
   const sendDraft = id => {
     const d = drafts.find(x=>x.id===id);
     setDrafts(drafts.filter(x=>x.id!==id));
-    setLogs([{id:Date.now(),time:new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false}),dot:'green',text:`Draft sent to <strong>${d?.name}</strong>`},...logs]);
+    addLog(`Draft sent to <strong>${d?.name}</strong>`,'green');
     t('Reply sent!','green');
   };
   const discardDraft = id => { setDrafts(drafts.filter(x=>x.id!==id)); t('Draft discarded','amber'); };
@@ -556,20 +598,15 @@ function App() {
               {n.icon}<span className="ni-label">{n.lbl}</span>{n.badge!=null&&<span className="nav-badge">{n.badge}</span>}
             </button>
           ))}
-
           <span className="sb-sec">Categories</span>
           {[{id:'important',lbl:'Important',icon:Ic.star},{id:'promotions',lbl:'Promotions',icon:Ic.archive,badge:promo,bc:'amber'},{id:'spam',lbl:'Spam',icon:Ic.trash,badge:spam,bc:'red'},{id:'bin',lbl:'Bin',icon:Ic.bin}].map(n=>(
-            <button key={n.id} className={`nav-item ${nav===n.id?'active':''}`} onClick={()=>go(n.id)} title={n.lbl}>
+            <button key={n.id} className={`nav-item ${nav===n.id?'active':''}`} onClick={()=>{go(n.id);if(gmailConn)fetchRealEmails(n.id==='promotions'?'Promotions':n.id==='spam'?'Spam':n.id==='important'?'Important':'all');}} title={n.lbl}>
               {n.icon}<span className="ni-label">{n.lbl}</span>{n.badge!=null&&<span className={`nav-badge ${n.bc||''}`}>{n.badge}</span>}
             </button>
           ))}
-
           <span className="sb-sec">System</span>
-          {/* NOTIFICATION as nav item */}
           <button className={`nav-item notif-item ${nav==='notifications'?'active':''}`} onClick={()=>go('notifications')} title="Notifications">
-            {Ic.bell}
-            <span className="ni-label">Notifications</span>
-            {unreadNotifs>0&&<span className="notif-count">{unreadNotifs}</span>}
+            {Ic.bell}<span className="ni-label">Notifications</span>{unreadNotifs>0&&<span className="notif-count">{unreadNotifs}</span>}
           </button>
           {[{id:'logs',lbl:'Agent Logs',icon:Ic.log},{id:'settings',lbl:'Settings',icon:Ic.settings}].map(n=>(
             <button key={n.id} className={`nav-item ${nav===n.id?'active':''}`} onClick={()=>go(n.id)} title={n.lbl}>
@@ -612,11 +649,10 @@ function App() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <div className="topbar-title">{nav==='dashboard'?<><span>MailSense</span> Dashboard</>:titles[nav]}</div>
-          <div className="status-pill"><div className="status-dot"/>Agent Active</div>
+          <div className="status-pill"><div className="status-dot"/>{gmailConn?'Gmail Connected':'Agent Active'}</div>
           <div className={`mode-pill ${mode}`}>
             {mode==='fast'?<><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Fast</>:<><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Safe</>}
           </div>
-          {/* PROMINENT THEME TOGGLE */}
           <button className="theme-toggle-btn" onClick={()=>setTheme(x=>x==='dark'?'light':'dark')} title="Toggle theme">
             {theme==='dark'?Ic.sun:Ic.moon}
             <span className="theme-label">{theme==='dark'?'Light':'Dark'}</span>
@@ -625,7 +661,20 @@ function App() {
 
         <div className="content">
 
+          {/* ── DASHBOARD ── */}
           {nav==='dashboard'&&<>
+            {/* Gmail connect banner */}
+            {!gmailConn&&(
+              <div style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',background:'rgba(79,110,247,0.06)',border:'1px solid rgba(79,110,247,0.2)',borderRadius:12,marginBottom:14}}>
+                <div style={{fontSize:'1.4rem'}}>📧</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:'0.84rem',fontWeight:600,color:'var(--text)',marginBottom:2}}>Connect Gmail to see real emails</div>
+                  <div style={{fontSize:'0.76rem',color:'var(--text-muted)'}}>Currently showing demo data. Connect Gmail to fetch your actual inbox.</div>
+                </div>
+                <button className="action-btn primary" onClick={connectGmail}>{Ic.gmail} Connect Gmail</button>
+              </div>
+            )}
+
             <div className={`mode-banner ${mode}`}>
               <div style={{fontSize:'1.4rem'}}>{mode==='fast'?'⚡':'🛡️'}</div>
               <div>
@@ -634,9 +683,10 @@ function App() {
               </div>
               <button className="action-btn" style={{marginLeft:'auto',fontSize:'0.73rem',padding:'6px 10px'}} onClick={()=>go('settings')}>Change</button>
             </div>
+
             <div className="stats-grid">
               {[
-                {lbl:'Total Emails',val:emails.length,sub:'Fetched today',cls:'blue',icon:Ic.mail},
+                {lbl:'Total Emails',val:emails.length,sub:gmailConn?'From Gmail':'Demo data',cls:'blue',icon:Ic.mail},
                 {lbl:'Important',val:imp,sub:'Needs attention',cls:'teal',icon:Ic.star},
                 {lbl:'Promotions',val:promo,sub:'Auto-archived',cls:'amber',icon:Ic.archive},
                 mode==='safe'?{lbl:'Drafts Pending',val:drafts.length,sub:'Awaiting review',cls:'green',icon:Ic.reply}:{lbl:'Auto-Replies',val:replied,sub:'Sent today',cls:'green',icon:Ic.reply},
@@ -649,12 +699,19 @@ function App() {
                 </div>
               ))}
             </div>
+
             <div className="action-row">
-              <button className="action-btn primary" onClick={runAgent}>{Ic.refresh} Run Agent</button>
-              <button className="action-btn" onClick={()=>t('Fetching emails…','green')}>{Ic.inbox} Fetch</button>
+              <button className="action-btn primary" onClick={runAgent} disabled={loadingEmails}>
+                {loadingEmails?<span className="spinner"/>:Ic.refresh} {loadingEmails?'Running…':'Run Agent'}
+              </button>
+              <button className="action-btn" onClick={()=>gmailConn?fetchRealEmails():t('Connect Gmail first!','amber')} disabled={loadingEmails}>
+                {loadingEmails?<span className="spinner"/>:Ic.inbox} {loadingEmails?'Loading…':'Fetch Emails'}
+              </button>
+              {!gmailConn&&<button className="action-btn teal" onClick={connectGmail}>{Ic.gmail} Connect Gmail</button>}
               {mode==='safe'&&drafts.length>0&&<button className="action-btn teal" onClick={()=>go('inbox')}>{Ic.reply} Review {drafts.length} Drafts</button>}
               <button className="action-btn danger" onClick={()=>{go('inbox');selCat('spam');}}>{Ic.bin} Clear Spam</button>
             </div>
+
             {mode==='safe'&&drafts.length>0&&(
               <div className="panel">
                 <div className="panel-header"><div className="panel-title">🛡️ Drafts Awaiting Review</div><span className="panel-badge">{drafts.length} pending</span></div>
@@ -675,6 +732,7 @@ function App() {
                 </div>
               </div>
             )}
+
             <div className="two-col">
               <div className="panel">
                 <div className="panel-header"><div className="panel-title">Weekly Activity</div><span className="panel-badge">7 days</span></div>
@@ -712,6 +770,7 @@ function App() {
                 </div>
               </div>
             </div>
+
             <div className="panel">
               <div className="panel-header"><div className="panel-title">Recent Logs</div><span className="panel-badge">Live</span></div>
               <div className="log-list">
@@ -722,9 +781,13 @@ function App() {
             </div>
           </>}
 
+          {/* ── INBOX / CATEGORIES ── */}
           {['inbox','important','promotions','spam','bin'].includes(nav)&&<>
             <div className="action-row">
-              <button className="action-btn" onClick={selAll}>{Ic.check} Select All</button>
+              <button className="action-btn" onClick={()=>gmailConn?fetchRealEmails(nav==='promotions'?'Promotions':nav==='spam'?'Spam':nav==='important'?'Important':'all'):selAll()} disabled={loadingEmails}>
+                {loadingEmails?<span className="spinner"/>:Ic.refresh} {loadingEmails?'Loading…':(gmailConn?'Refresh':'Select All')}
+              </button>
+              {!gmailConn&&<button className="action-btn" onClick={selAll}>{Ic.check} Select All</button>}
               <button className="action-btn" onClick={clearSel}>Clear</button>
               <select className="sel-drop" value={delCat} onChange={e=>selCat(e.target.value)}>
                 <option value="">Category…</option>
@@ -734,10 +797,12 @@ function App() {
               </select>
               {selected.length>0&&<button className="action-btn danger" onClick={doDelete}>{Ic.bin} Move {selected.length}</button>}
             </div>
+
             <div className="panel">
               <div className="panel-header">
                 <div className="panel-title">{titles[nav]}</div>
                 <span className="panel-badge">{nav==='inbox'?emails.length:emails.filter(e=>e.tag===(nav==='promotions'?'promo':nav==='bin'?null:nav)).length} emails</span>
+                {gmailConn&&<span style={{fontSize:'0.65rem',color:'var(--teal)',marginLeft:4}}>● Live</span>}
               </div>
               {selected.length>0&&(
                 <div className="del-toolbar">
@@ -746,27 +811,41 @@ function App() {
                   <button className="action-btn" style={{padding:'5px 10px',fontSize:'0.73rem'}} onClick={clearSel}>Cancel</button>
                 </div>
               )}
-              <div className="email-list">
-                {(nav==='inbox'?emails:emails.filter(e=>e.tag===(nav==='promotions'?'promo':nav==='bin'?null:nav))).filter(Boolean).map(em=>(
-                  <div key={em.id} className="email-item">
-                    <input type="checkbox" checked={selected.includes(em.id)} onChange={()=>toggleSel(em.id)}/>
-                    <div className="e-avatar" style={{background:em.color}}>{em.from[0]}</div>
-                    <div className="e-body">
-                      <div className="e-from">{em.from}</div>
-                      <div className="e-subject">{em.subject}</div>
-                      <div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}>
-                        <span className={`e-tag tag-${em.tag}`}>{em.tag}</span>
-                        {em.replied&&<span className="e-tag tag-replied">{mode==='safe'?'draft':'replied'}</span>}
+              {loadingEmails?(
+                <div className="empty-state"><span className="spinner" style={{width:20,height:20,borderWidth:2}}/><p style={{marginTop:10}}>Fetching emails from Gmail…</p></div>
+              ):(
+                <div className="email-list">
+                  {(nav==='inbox'?emails:emails.filter(e=>e.tag===(nav==='promotions'?'promo':nav==='bin'?null:nav))).filter(Boolean).map(em=>(
+                    <div key={em.id} className="email-item">
+                      <input type="checkbox" checked={selected.includes(em.id)} onChange={()=>toggleSel(em.id)}/>
+                      <div className="e-avatar" style={{background:em.color}}>{(em.from||'?')[0].toUpperCase()}</div>
+                      <div className="e-body">
+                        <div className="e-from">{em.from}</div>
+                        <div className="e-subject">{em.subject}</div>
+                        {em.snippet&&<div className="e-snippet">{em.snippet}</div>}
+                        <div style={{display:'flex',gap:6,marginTop:4,flexWrap:'wrap'}}>
+                          <span className={`e-tag tag-${em.tag}`}>{em.tag}</span>
+                          {em.replied&&<span className="e-tag tag-replied">{mode==='safe'?'draft':'replied'}</span>}
+                        </div>
+                      </div>
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
+                        <div className="e-time">{em.time}</div>
+                        {gmailConn&&(
+                          <div style={{display:'flex',gap:4}}>
+                            <button style={{padding:'3px 7px',borderRadius:5,border:'1px solid var(--border2)',background:'none',color:'var(--text-muted)',fontSize:'0.65rem',cursor:'pointer'}} onClick={()=>realEmailAction(em.id,'archive')}>Archive</button>
+                            <button style={{padding:'3px 7px',borderRadius:5,border:'1px solid rgba(248,113,113,0.3)',background:'none',color:'var(--red)',fontSize:'0.65rem',cursor:'pointer'}} onClick={()=>realEmailAction(em.id,'delete')}>Delete</button>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="e-time">{em.time}</div>
-                  </div>
-                ))}
-                {nav==='bin'&&<div style={{padding:'32px',textAlign:'center',color:'var(--text-dim)',fontSize:'0.81rem'}}>Bin is empty</div>}
-              </div>
+                  ))}
+                  {nav==='bin'&&<div className="empty-state">Bin is empty</div>}
+                </div>
+              )}
             </div>
           </>}
 
+          {/* ── NOTIFICATIONS ── */}
           {nav==='notifications'&&(
             <div className="panel">
               <div className="panel-header">
@@ -790,6 +869,7 @@ function App() {
             </div>
           )}
 
+          {/* ── GMAIL ── */}
           {nav==='gmail'&&(
             !gmailConn?(
               <div className="gmail-card">
@@ -800,8 +880,8 @@ function App() {
                   </svg>
                 </div>
                 <div className="gmail-title">Connect your Gmail</div>
-                <p className="gmail-desc">Connect your Gmail account to let Agentra MailSense read, classify, and reply to your emails automatically.</p>
-                <button className="gmail-btn" onClick={()=>{setGmailConn(true);t('Gmail connected! (Demo)','green');}}>
+                <p className="gmail-desc">Connect your Gmail account to let Agentra MailSense read, classify, and reply to your emails automatically in {mode==='fast'?'⚡ Fast':'🛡️ Safe'} Mode.</p>
+                <button className="gmail-btn" onClick={connectGmail}>
                   <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                   Connect with Google
                 </button>
@@ -811,17 +891,22 @@ function App() {
                 <div className="gmail-connected">
                   <svg width="22" height="22" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                   <div className="gcc-text">
-                    <div className="gcc-title">Gmail Connected</div>
-                    <div className="gcc-sub">{sessionStorage.getItem('user_email')||'your@gmail.com'} · Syncing every 5 minutes</div>
+                    <div className="gcc-title">Gmail Connected ✅</div>
+                    <div className="gcc-sub">{sessionStorage.getItem('user_email')||'your@gmail.com'} · Fetching real emails</div>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:6,padding:'4px 10px',background:'rgba(52,211,153,0.1)',border:'1px solid rgba(52,211,153,0.2)',borderRadius:20,fontSize:'0.7rem',color:'var(--green)',fontWeight:500}}>
                     <div className="status-dot"/>Active
                   </div>
                 </div>
+                <div className="action-row">
+                  <button className="action-btn primary" onClick={()=>fetchRealEmails()} disabled={loadingEmails}>
+                    {loadingEmails?<span className="spinner"/>:Ic.refresh} {loadingEmails?'Loading…':'Refresh Inbox'}
+                  </button>
+                </div>
                 <div className="panel">
                   <div className="panel-header"><div className="panel-title">Gmail Settings</div></div>
                   <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:8}}>
-                    {[{l:'Sync frequency',s:'How often to check for new emails',v:'5 minutes'},{l:'Labels to scan',s:'Which Gmail labels to monitor',v:'Inbox'},{l:'Max emails per scan',s:'Number of emails to fetch at once',v:'50'}].map((x,i)=>(
+                    {[{l:'Sync frequency',s:'How often to check for new emails',v:'5 minutes'},{l:'Labels to scan',s:'Which Gmail labels to monitor',v:'Inbox'},{l:'Max emails per scan',s:'Number of emails to fetch at once',v:'20'}].map((x,i)=>(
                       <div key={i} className="settings-row">
                         <div><div className="sr-label">{x.l}</div><div className="sr-sub">{x.s}</div></div>
                         <select className="sel-drop" defaultValue={x.v}><option>{x.v}</option></select>
@@ -836,6 +921,7 @@ function App() {
             )
           )}
 
+          {/* ── LOGS ── */}
           {nav==='logs'&&(
             <div className="panel">
               <div className="panel-header"><div className="panel-title">Full Agent Log</div><span className="panel-badge">{logs.length} entries</span></div>
@@ -847,6 +933,7 @@ function App() {
             </div>
           )}
 
+          {/* ── SETTINGS ── */}
           {nav==='settings'&&(
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
               <div className="panel">
@@ -894,7 +981,7 @@ function App() {
               </div>
               <div className="danger-zone">
                 <div className="dz-title">⚠️ Danger Zone</div>
-                <div className="dz-desc">Permanently delete your account and all associated data. This cannot be undone. To use Agentra MailSense again, you will need to register a new account.</div>
+                <div className="dz-desc">Permanently delete your account and all associated data. This cannot be undone.</div>
                 <button className="del-acc-btn" onClick={()=>setShowDelModal(true)}>{Ic.del} Delete My Account Permanently</button>
               </div>
             </div>
