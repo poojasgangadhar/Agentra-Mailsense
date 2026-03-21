@@ -26,6 +26,10 @@
       "destination": "/api/forgot-reset-password.js"
     },
     {
+      "source": "/api/delete-account",
+      "destination": "/api/delete-account.js"
+    },
+    {
       "source": "/api/auth/connect",
       "destination": "/api/auth/connect.js"
     },

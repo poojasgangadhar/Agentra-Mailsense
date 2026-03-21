@@ -450,13 +450,19 @@ function App() {
 
   // ── Check Gmail OAuth callback ──
   useEffect(()=>{
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('gmail_connected')==='true') {
-      setGmailConn(true);
-      t('✅ Gmail connected successfully!','green');
-      window.history.replaceState({},'',(window.location.pathname));
-      fetchRealEmails();
-    }
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('gmail_connected')==='true') {
+    setGmailConn(true);
+    t('✅ Gmail connected successfully!','green');
+    window.history.replaceState({},'',(window.location.pathname));
+    // Small delay to ensure state is set before fetching
+    setTimeout(()=>fetchRealEmails(), 500);
+  }
+  if (params.get('gmail_error')) {
+    t('❌ Gmail connection failed. Try again.','red');
+    window.history.replaceState({},'',(window.location.pathname));
+  }
+},[]);
     if (params.get('gmail_error')) {
       t('❌ Gmail connection failed. Try again.','red');
       window.history.replaceState({},'',(window.location.pathname));
