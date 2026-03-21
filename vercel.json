@@ -1,27 +1,57 @@
 {
   "version": 2,
-  "functions": {
-    "api/*.js": {
-      "memory": 1024,
-      "maxDuration": 10
-    }
-  },
-  "headers": [
+  "rewrites": [
+    {
+      "source": "/api/login",
+      "destination": "/api/login.js"
+    },
+    {
+      "source": "/api/signup-send-otp",
+      "destination": "/api/signup-send-otp.js"
+    },
+    {
+      "source": "/api/signup-verify-otp",
+      "destination": "/api/signup-verify-otp.js"
+    },
+    {
+      "source": "/api/forgot-send-otp",
+      "destination": "/api/forgot-send-otp.js"
+    },
+    {
+      "source": "/api/forgot-verify-otp",
+      "destination": "/api/forgot-verify-otp.js"
+    },
+    {
+      "source": "/api/forgot-reset-password",
+      "destination": "/api/forgot-reset-password.js"
+    },
+    {
+      "source": "/api/auth/connect",
+      "destination": "/api/auth/connect.js"
+    },
+    {
+      "source": "/api/auth/callback",
+      "destination": "/api/auth/callback.js"
+    },
+    {
+      "source": "/api/emails/fetch",
+      "destination": "/api/emails/fetch.js"
+    },
+    {
+      "source": "/api/emails/reply",
+      "destination": "/api/emails/reply.js"
+    },
+    {
+      "source": "/api/emails/action",
+      "destination": "/api/emails/action.js"
+    },
+    {
+      "source": "/",
+      "destination": "/public/index.html"
+    },
     {
       "source": "/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
+      "destination": "/public/$1"
     }
-  ],
-  "rewrites": [
-    { "source": "/api/login", "destination": "/api/login.js" },
-    { "source": "/api/signup-send-otp", "destination": "/api/signup-send-otp.js" },
-    { "source": "/api/signup-verify-otp", "destination": "/api/signup-verify-otp.js" },
-    { "source": "/api/forgot-send-otp", "destination": "/api/forgot-send-otp.js" },
-    { "source": "/api/forgot-verify-otp", "destination": "/api/forgot-verify-otp.js" },
-    { "source": "/api/forgot-reset-password", "destination": "/api/forgot-reset-password.js" },
-    { "source": "/api/delete-account", "destination": "/api/delete-account.js" },
-    { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }

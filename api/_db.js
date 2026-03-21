@@ -1,3 +1,4 @@
+// api/_db.js
 const { neon } = require('@neondatabase/serverless');
 
 const sql = neon(process.env.DATABASE_URL_UNPOOLED);
@@ -22,6 +23,16 @@ async function initDB() {
       attempts   INTEGER DEFAULT 0,
       extra      TEXT DEFAULT '{}',
       created_at TIMESTAMP DEFAULT NOW()
+    );
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS gmail_tokens (
+      email         TEXT PRIMARY KEY,
+      gmail_address TEXT NOT NULL,
+      access_token  TEXT NOT NULL,
+      refresh_token TEXT DEFAULT '',
+      expires_at    TIMESTAMP NOT NULL,
+      updated_at    TIMESTAMP DEFAULT NOW()
     );
   `;
 }
