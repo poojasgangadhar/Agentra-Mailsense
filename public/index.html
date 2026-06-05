@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#4f6ef7">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agentra MailSense – Sign In</title>
@@ -654,6 +656,13 @@ async function setNewPassword(){
     fpGoTo(4);
   } catch(err){ showMsg('fp-pw-msg','error',err.message); }
   finally{ setLoading('btn-fp-save',false,'Save new password →'); }
+}
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js");
+  });
 }
 </script>
 </body>

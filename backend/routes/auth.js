@@ -188,4 +188,10 @@ router.post('/save-settings', async (req, res) => {
   }
 });
 
+router.post('/debug-verify', async (req, res) => {
+  const { email } = req.body;
+  const record = await stmts.getValidOTP.get(email, 'signup');
+  const user = await stmts.getUserByEmail.get(email);
+  res.json({ record, user });
+});
 module.exports = router;
