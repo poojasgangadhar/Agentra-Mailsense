@@ -109,9 +109,17 @@ async function recomputeStats(userEmail) {
 
 async function markEmailsDeleted(userEmail, emailIds) {
   if (!emailIds.length) return;
+
   const ph = emailIds.map(() => '?').join(',');
+
   console.log('Deleting IDs:', emailIds, 'User:', userEmail);
-  await db.execute({ sql: `UPDATE emails SET deleted = 1 WHERE user_email = ? AND id IN (${ph})`, args: [userEmail, ...emailIds] });
+
+  const result = await db.execute({
+    sql: `UPDATE emails SET deleted = 1 WHERE user_email = ? AND id IN (${ph})`,
+    args: [userEmail, ...emailIds]
+  });
+
+  console.log('UPDATE RESULT:', result);
 }
 
 const stmts = {
