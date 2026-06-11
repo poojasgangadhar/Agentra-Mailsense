@@ -901,15 +901,52 @@ function App(){
     try{const res=await fetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId,mode:'fast',replyTemplate:customReply})});const d=await res.json();if(d.success){addLog('green','Reply confirmed & sent');t('Reply sent!','green');await loadStatus();}else t(d.error||'Failed','red');}
     catch{t('Network error','red');}
   };
+const doDelete = async (overrideIds) => {
+  const ids = overrideIds || selected;
+  const n = ids.length;
 
-  const doDelete=async(overrideIds)=>{
-    const ids=overrideIds||selected;
-    const n=ids.length;if(!n)return;
-    try{await fetch('/api/gmail-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailIds:ids,action:'trash'})});setEmails(prev=>prev.map(e=>ids.includes(e.id)?{...e,deleted:true}:e));addLog('red',`Moved <strong>${n}</strong> email${n>1?'s':''} to Bin`);t(`${n} moved to Bin`,'red');}
-    catch{t('Failed to delete','red');}
-    if(!overrideIds){setSelected([]);setDelCat('');}
-  };
+  if (!n) return;
 
+  const confirmed = window.confirm(
+    `Are you sure you want to move ${n} email${n > 1 ? 's' : ''} to Bin?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch('/api/gmail-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userEmail,
+        emailIds: ids,
+        action: 'trash'
+      })
+    });
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to move emails to Bin');
+    }
+
+    setEmails(prev =>
+      prev.map(email =>
+        ids.includes(email.id)
+          ? { ...email, deleted: true }
+          : email
+      )
+    );
+
+    setSelected([]);
+    t(`${n} email${n > 1 ? 's' : ''} moved to Bin successfully`, 'green');
+
+  } catch (err) {
+    console.error(err);
+    t('Failed to move emails to Bin', 'red');
+  }
+};
+  
   const doBulkDeleteAll=async()=>{
     setBulkDeleting(true);
     const catFilter={inbox:e=>!e.archived&&!e.deleted,important:e=>e.tag==='important'&&!e.archived&&!e.deleted,promotions:e=>e.tag==='promo'&&!e.archived&&!e.deleted,spam:e=>e.tag==='spam'&&!e.deleted,bin:e=>e.deleted};
