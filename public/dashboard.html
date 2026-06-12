@@ -1265,7 +1265,24 @@ const doDelete = async (overrideIds) => {
                   </label>
                 ))}
               </div>
-              <button className="action-btn danger" style={{alignSelf:'flex-start'}} onClick={()=>{if(!Object.values(bulkDelCats).some(Boolean)){t('Select at least one category','amber');return;}setShowBulkDelModal(true);}}>🗑️ Delete All Selected</button>
+              <button 
+  className="action-btn danger" 
+  disabled={!Object.values(bulkDelCats).some(Boolean)}
+  onClick={()=>{
+    if(!Object.values(bulkDelCats).some(Boolean)){
+      t('Please select at least one category first','amber');
+      return;
+    }
+    setShowBulkDelModal(true);
+  }}
+>
+  🗑️ Delete All Selected
+</button>
+{!Object.values(bulkDelCats).some(Boolean) && (
+  <div style={{fontSize:'.74rem',color:'var(--amber)',marginTop:4}}>
+    ⚠️ Tick the categories above first, then click the button
+  </div>
+)}
             </div>
           </div>
           <div className="danger-zone">
