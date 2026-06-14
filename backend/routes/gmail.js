@@ -3,6 +3,7 @@ const express = require('express');
 const { db, stmts, recomputeStats, markEmailsDeleted, queryOne, exec } = require('../db');
 const gmailHelper = require('../gmail');
 const { classifyEmail, generateReply } = require('../mistral');
+const { requireAuth, verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -29,15 +30,20 @@ function formatEmail(row) {
 }
 
 router.get('/gmail-auth', (req, res) => {
-  const email = req.query.email;
-  if (!email) return res.status(400).send('Email required');
-  res.redirect(gmailHelper.getAuthUrl(email));
+  const token = req.query.token;
+  const payload = token && verifyToken(token);
+  if (!payload?.email) return res.status(401).send('Authentication required.');
+  // Re-use the verified JWT as the OAuth `state` so the callback
+  // can confirm the email without trusting a client-supplied value.
+  res.redirect(gmailHelper.getAuthUrl(token));
 });
 
 router.get('/oauth2callback', async (req, res) => {
-  const { code, state: email, error } = req.query;
+  const { code, state: token, error } = req.query;
   const APP_URL = process.env.APP_URL || 'http://localhost:3000';
   if (error) return res.redirect(`${APP_URL}/dashboard.html?gmail=error&reason=${error}`);
+  const payload = token && verifyToken(token);
+  const email = payload?.email;
   if (!code || !email) return res.redirect(`${APP_URL}/dashboard.html?gmail=error&reason=missing_code`);
   try {
     const tokens = await gmailHelper.exchangeCode(code);
@@ -55,9 +61,8 @@ router.get('/oauth2callback', async (req, res) => {
   }
 });
 
-router.post('/gmail-status', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email required.' });
+router.post('/gmail-status', requireAuth, async (req, res) => {
+  const email = req.user.email;
   const tokenRow = await stmts.getToken.get(email);
   if (!tokenRow) return res.json({ connected: false });
   const emailRows = await stmts.getEmails.all(email);
@@ -71,9 +76,9 @@ router.post('/gmail-status', async (req, res) => {
   });
 });
 
-router.post('/gmail-fetch', async (req, res) => {
-  const { email, maxEmails = 100, dateRange = 'all' } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email required.' });
+router.post('/gmail-fetch', requireAuth, async (req, res) => {
+  const { maxEmails = 100, dateRange = 'all' } = req.body;
+  const email = req.user.email;
   const tokenRow = await stmts.getToken.get(email);
   if (!tokenRow) return res.status(400).json({ error: 'Gmail not connected.' });
   try {
@@ -130,9 +135,10 @@ router.post('/gmail-fetch', async (req, res) => {
   }
 });
 
-router.post('/gmail-reply', async (req, res) => {
-  const { userEmail, emailId, mode, replyTemplate } = req.body;
-  if (!userEmail || !emailId) return res.status(400).json({ error: 'userEmail and emailId required.' });
+router.post('/gmail-reply', requireAuth, async (req, res) => {
+  const { emailId, mode, replyTemplate } = req.body;
+  const userEmail = req.user.email;
+  if (!emailId) return res.status(400).json({ error: 'emailId required.' });
   const tokenRow = await stmts.getToken.get(userEmail);
   if (!tokenRow) return res.status(400).json({ error: 'Gmail not connected.' });
   const emailRow = await queryOne('SELECT * FROM emails WHERE id = ? AND user_email = ?', emailId, userEmail);
@@ -162,9 +168,10 @@ router.post('/gmail-reply', async (req, res) => {
   }
 });
 
-router.post('/gmail-action', async (req, res) => {
-  const { userEmail, emailIds, action } = req.body;
-  if (!userEmail || !emailIds?.length) return res.status(400).json({ error: 'userEmail and emailIds required.' });
+router.post('/gmail-action', requireAuth, async (req, res) => {
+  const { emailIds, action } = req.body;
+  const userEmail = req.user.email;
+  if (!emailIds?.length) return res.status(400).json({ error: 'emailIds required.' });
   const tokenRow = await stmts.getToken.get(userEmail);
   try {
     let count = 0;
@@ -204,9 +211,8 @@ router.post('/gmail-action', async (req, res) => {
   }
 });
 
-router.post('/gmail-disconnect', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email required.' });
+router.post('/gmail-disconnect', requireAuth, async (req, res) => {
+  const email = req.user.email;
   const tokenRow = await stmts.getToken.get(email);
   if (tokenRow?.access_token) await gmailHelper.revokeToken(tokenRow.access_token).catch(() => {});
   await stmts.deleteToken.run(email);
@@ -214,9 +220,10 @@ router.post('/gmail-disconnect', async (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/gmail-generate-reply', async (req, res) => {
-  const { userEmail, emailId, replyTemplate, customContext } = req.body;
-  if (!userEmail || !emailId) return res.status(400).json({ error: 'userEmail and emailId required.' });
+router.post('/gmail-generate-reply', requireAuth, async (req, res) => {
+  const { emailId, replyTemplate, customContext } = req.body;
+  const userEmail = req.user.email;
+  if (!emailId) return res.status(400).json({ error: 'emailId required.' });
   const emailRow = await queryOne('SELECT * FROM emails WHERE id = ? AND user_email = ?', emailId, userEmail);
   if (!emailRow) return res.status(404).json({ error: 'Email not found.' });
   try {

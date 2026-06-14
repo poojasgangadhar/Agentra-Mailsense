@@ -42,4 +42,15 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { signToken, requireAuth, requireAdmin };
+// Verify a JWT and return its payload, or null if invalid/expired.
+// Used for redirect-based flows (e.g. Google OAuth) where an
+// Authorization header can't be attached.
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { signToken, requireAuth, requireAdmin, verifyToken };

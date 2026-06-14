@@ -503,7 +503,21 @@ input,textarea,select,button{font-size:14px !important;}
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-if (!sessionStorage.getItem('is_logged_in')) { window.location.href = '/'; }
+const jwtToken = sessionStorage.getItem('jwt_token');
+if (!sessionStorage.getItem('is_logged_in') || !jwtToken) { window.location.href = '/'; }
+
+// fetch wrapper that attaches the JWT and sends the user back to
+// login if the session is invalid/expired.
+async function authFetch(url, options = {}) {
+  const headers = { ...(options.headers || {}), 'Authorization': `Bearer ${jwtToken}` };
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    sessionStorage.clear();
+    window.location.href = '/';
+    throw new Error('Session expired');
+  }
+  return res;
+}
 
 const NOTIFS = [
   { id:1, title:'Welcome to Agentra MailSense!', desc:'Connect your Gmail to start automating your emails.', time:'Just now', unread:true },
@@ -608,8 +622,7 @@ function ReplyModal({email, userEmail, replyTemplate, onClose, onSend}){
   const gen=async()=>{
     setGenerating(true);setErr('');
     try{
-      const res=await fetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId:email.id,replyTemplate,customContext:context||undefined})});
-      const d=await res.json();
+      const res=await authFetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId:email.id,replyTemplate,customContext:context||undefined})});
       if(d.success)setReply(d.reply);
       else setErr(d.error||'Generation failed');
     }catch{setErr('Network error. Make sure Mistral API key is set.');}
@@ -664,7 +677,7 @@ function FastAnalyzer({emails,userEmail,replyTemplate,t}){
     if(previews[em.id]){setExpanded(em.id);return;}
     setLoading(l=>({...l,[em.id]:true}));
     try{
-      const res=await fetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId:em.id,replyTemplate})});
+      const res=await authFetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId:em.id,replyTemplate})});
       const d=await res.json();
       if(d.success)setPreviews(p=>({...p,[em.id]:d.reply}));
       else setPreviews(p=>({...p,[em.id]:'Could not generate preview: '+d.error}));
@@ -821,7 +834,7 @@ function App(){
   },[showOB]);
 
   const loadStatus=async()=>{
-    try{const res=await fetch('/api/gmail-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail})});const d=await res.json();if(d.connected){setGmailConn(true);if(d.emails)setEmails(d.emails);if(d.stats)setStats(d.stats);if(d.logs)setLogs(d.logs);}}catch{}
+   try{const res=await authFetch('/api/gmail-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const d=await res.json();if(d.connected){setGmailConn(true);if(d.emails)setEmails(d.emails);if(d.stats)setStats(d.stats);if(d.logs)setLogs(d.logs);}}catch{} 
   };
 
   const addLog=(dot,text)=>{const time=new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false});setLogs(l=>[{id:Date.now(),time,dot,text},...l].slice(0,80));};
@@ -840,7 +853,7 @@ function App(){
     if(!gmailConn)return t('Please connect Gmail first','red');
     setFetching(true);addLog('blue',`Fetching emails (${dateRange})…`);
     try{
-      const res=await fetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail,maxEmails:500,dateRange})});
+      const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:500,dateRange})});
       const d=await res.json();
       if(d.success){
         // Use fresh data directly from response — no stale state
@@ -885,7 +898,7 @@ function App(){
       for(const emailId of pendingIds.slice(0,10)){
         const em=freshEmails.find(e=>e.id===emailId);
         try{
-          const res=await fetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId,mode:'fast',replyTemplate})});
+          const res=await authFetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId,mode:'fast',replyTemplate})});
           const d=await res.json();
           if(d.success){sent++;addLog('green',`⚡ Auto-reply sent to <strong>${em?.from||emailId}</strong>`);}
           else{failed++;addLog('amber',`Skipped ${em?.from||emailId}: ${d.message||'already replied'}`);}
@@ -914,16 +927,14 @@ const doDelete = async (overrideIds) => {
   if (!confirmed) return;
 
   try {
-    const response = await fetch('/api/gmail-action', {
+    const response = await authFetch('/api/gmail-action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userEmail,
         emailIds: ids,
         action: 'trash'
       })
     });
-
     const result = await response.json();
 
     if (!result.success) {
@@ -954,7 +965,7 @@ const doDelete = async (overrideIds) => {
     const n=ids.length;
     if(!n){t('No emails found in selected categories','amber');setBulkDeleting(false);setShowBulkDelModal(false);return;}
     try{
-      await fetch('/api/gmail-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailIds:ids,action:'trash'})});
+      await authFetch('/api/gmail-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailIds:ids,action:'trash'})});
       setEmails(prev=>prev.map(e=>ids.includes(e.id)?{...e,deleted:true}:e));
       addLog('red',`Bulk deleted <strong>${n}</strong> email${n>1?'s':''} across selected categories`);
       t(`${n} email${n>1?'s':''} deleted`,'red');
@@ -969,12 +980,11 @@ const doDelete = async (overrideIds) => {
     if(!delEmail||!delPw){setDelErr('Both fields required.');return;}
     if(delEmail.toLowerCase()!==userEmail.toLowerCase()){setDelErr('Email does not match your account.');return;}
     setDelLoading(true);
-    try{const res=await fetch('/api/delete-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:delEmail,password:delPw})});const d=await res.json();if(d.success){localStorage.clear();sessionStorage.clear();window.location.href='/';}else setDelErr(d.error||'Failed.');}
+    try{const res=await authFetch('/api/delete-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:delPw})});const d=await res.json();if(d.success){localStorage.clear();sessionStorage.clear();window.location.href='/';}else setDelErr(d.error||'Failed.');}
     catch{setDelErr('Network error.');}
     setDelLoading(false);
   };
-  const connectGmail=()=>{window.location.href=`/api/gmail-auth?email=${encodeURIComponent(userEmail)}`;};
-  const disconnectGmail=async()=>{await fetch('/api/gmail-disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail})});setGmailConn(false);setEmails([]);setStats({total:0,important:0,promo:0,spam:0,replied:0});t('Gmail disconnected','amber');};
+  
   const toggleSel=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
   const selAll=()=>setSelected(filteredEmails(nav).map(e=>e.id));
   const clearSel=()=>setSelected([]);
@@ -1250,7 +1260,7 @@ const doDelete = async (overrideIds) => {
             <div className="panel-header"><div className="panel-title">Auto-Delete Settings</div></div>
             <div style={{padding:'11px 14px',display:'flex',flexDirection:'column',gap:7}}>
               {[{key:'spam',lbl:'Auto-delete Spam after',sub:'Spam emails will be moved to Bin'},{key:'promo',lbl:'Auto-delete Promotions after',sub:'Promo emails will be moved to Bin'},{key:'bin',lbl:'Auto-empty Bin after',sub:'Bin emails permanently deleted'},{key:'all',lbl:'Auto-delete All Mails after',sub:'All emails across every category will be deleted'}].map(s=>(<div key={s.key} className="settings-row" style={s.key==='all'?{border:'1px solid rgba(239,68,68,.35)',background:'rgba(239,68,68,.04)'}:{}}><div><div className="sr-label" style={s.key==='all'?{color:'#ef4444'}:{}}>{s.lbl}</div><div className="sr-sub">{s.sub}</div></div><select className="sel-drop" value={autoDelete[s.key]||'never'} onChange={e=>setAutoDelete(p=>({...p,[s.key]:e.target.value}))}><option value="never">Never</option><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>))}
-              <button className="action-btn primary" style={{alignSelf:'flex-start',marginTop:3}} onClick={async()=>{localStorage.setItem('ms_autodelete',JSON.stringify(autoDelete));try{await fetch('/api/save-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail,key:'auto_delete',value:autoDelete})});}catch{}t('Auto-delete settings saved!','green');}}>{I.check} Save Settings</button>
+              <button className="action-btn primary" style={{alignSelf:'flex-start',marginTop:3}} onClick={async()=>{localStorage.setItem('ms_autodelete',JSON.stringify(autoDelete));try{await authFetch('/api/save-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'auto_delete',value:autoDelete})});}catch{}t('Auto-delete settings saved!','green');}}>{I.check} Save Settings</button>
             </div>
           </div>
           <div className="panel">

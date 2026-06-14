@@ -4,7 +4,7 @@ const bcrypt   = require('bcryptjs');
 const { google } = require('googleapis');
 const { db, stmts, exec, queryOne } = require('../db');
 const { generateOTP, otpExpiresAt, sendOTPEmail } = require('../mailer');
-const { signToken } = require('../middleware/auth');
+const { signToken, requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -134,13 +134,33 @@ router.post('/forgot-verify-otp', async (req, res) => {
   if (!record) return res.status(400).json({ error: 'Code expired or not found. Request a new one.' });
   if (record.code !== otp) return res.status(400).json({ error: 'Incorrect verification code.' });
   await stmts.markOTPUsed.run(record.id);
-  res.json({ success: true, message: 'Code verified.' });
+  // Issue a short-lived signed token proving this OTP was verified.
+  // The reset endpoint requires this token — it cannot be bypassed.
+  const resetToken = jwt.sign(
+    { email, purpose: 'password_reset' },
+    JWT_SECRET,
+    { expiresIn: '10m' }
+  );
+  res.json({ success: true, message: 'Code verified.', resetToken });
 });
 
 router.post('/forgot-reset-password', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and new password required.' });
+  const { resetToken, password } = req.body;
+  if (!resetToken || !password) return res.status(400).json({ error: 'Reset token and new password required.' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+  // Verify the signed reset token issued by forgot-verify-otp.
+  let payload;
+  try {
+    payload = jwt.verify(resetToken, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'Reset session expired or invalid. Please start over.' });
+  }
+  if (payload.purpose !== 'password_reset') {
+    return res.status(401).json({ error: 'Invalid reset token.' });
+  }
+
+  const email = payload.email;
   const user = await stmts.getUserByEmail.get(email);
   if (!user) return res.status(404).json({ error: 'Account not found.' });
   const hash = await bcrypt.hash(password, 12);
@@ -158,9 +178,10 @@ router.post('/verify-credentials', async (req, res) => {
   res.json({ success: true });
 });
 
-router.post('/delete-account', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
+router.post('/delete-account', requireAuth, async (req, res) => {
+  const { password } = req.body;
+  const email = req.user.email;
+  if (!password) return res.status(400).json({ error: 'Password required.' });
   const user = await stmts.getUserByEmail.get(email);
   if (!user) return res.status(404).json({ error: 'Account not found.' });
   const valid = await bcrypt.compare(password, user.password);
@@ -174,10 +195,11 @@ router.post('/delete-account', async (req, res) => {
   res.json({ success: true, message: 'Account deleted.' });
 });
 
-router.post('/save-settings', async (req, res) => {
-  const { email, key, value } = req.body;
-  if (!email || !key || value === undefined)
-    return res.status(400).json({ error: 'email, key and value required.' });
+router.post('/save-settings', requireAuth, async (req, res) => {
+  const { key, value } = req.body;
+  const email = req.user.email;
+  if (!key || value === undefined)
+    return res.status(400).json({ error: 'key and value required.' });
   try {
     await exec(`INSERT INTO user_settings (user_email, setting_key, setting_value) VALUES (?, ?, ?) ON CONFLICT(user_email, setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = datetime('now')`,
       email, key, typeof value === 'string' ? value : JSON.stringify(value));
