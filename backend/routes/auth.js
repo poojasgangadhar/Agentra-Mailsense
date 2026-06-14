@@ -4,9 +4,17 @@ const bcrypt   = require('bcryptjs');
 const { google } = require('googleapis');
 const { db, stmts, exec, queryOne } = require('../db');
 const { generateOTP, otpExpiresAt, sendOTPEmail } = require('../mailer');
-const { signToken, requireAuth } = require('../middleware/auth');
-
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_change_me';
+const { signToken } = require('../middleware/auth');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: { error: 'Too many attempts, please try again later.' }
+});
 
 function getGoogleOAuth2Client() {
   return new google.auth.OAuth2(
@@ -58,7 +66,7 @@ router.get('/google-callback', async (req, res) => {
   }
 });
 
-router.post('/signup-send-otp', async (req, res) => {
+router.post('/signup-send-otp', authLimiter, async (req, res) => {
   try {
     const { first_name, last_name, email, password } = req.body;
     if (!first_name || !last_name || !email || !password)
@@ -84,7 +92,7 @@ router.post('/signup-send-otp', async (req, res) => {
   }
 });
 
-router.post('/signup-verify-otp', async (req, res) => {
+router.post('/signup-verify-otp', authLimiter, async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required.' });
   const record = await stmts.getValidOTP.get(email, 'signup');
@@ -95,7 +103,7 @@ router.post('/signup-verify-otp', async (req, res) => {
   res.json({ success: true, message: 'Account verified successfully.' });
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
   const user = await stmts.getUserByEmail.get(email);
@@ -110,7 +118,7 @@ router.post('/login', async (req, res) => {
   });
 });
 
-router.post('/forgot-send-otp', async (req, res) => {
+router.post('/forgot-send-otp', authLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required.' });
   const user = await stmts.getUserByEmail.get(email);
@@ -127,7 +135,7 @@ router.post('/forgot-send-otp', async (req, res) => {
   }
 });
 
-router.post('/forgot-verify-otp', async (req, res) => {
+router.post('/forgot-verify-otp', authLimiter, async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and code required.' });
   const record = await stmts.getValidOTP.get(email, 'forgot');
@@ -210,10 +218,4 @@ router.post('/save-settings', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/debug-verify', async (req, res) => {
-  const { email } = req.body;
-  const record = await stmts.getValidOTP.get(email, 'signup');
-  const user = await stmts.getUserByEmail.get(email);
-  res.json({ record, user });
-});
 module.exports = router;
