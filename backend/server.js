@@ -25,6 +25,7 @@ const PORT = process.env.PORT || 3000;
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
 // ── Middleware ────────────────────────────────────────────────
+app.set('trust proxy', 1); // Required for express-rate-limit behind Vercel/proxies
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? [APP_URL, /\.vercel\.app$/]
