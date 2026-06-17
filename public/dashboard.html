@@ -917,32 +917,33 @@ function App(){
     try{const res=await fetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId,mode:'fast',replyTemplate:customReply})});const d=await res.json();if(d.success){addLog('green','Reply confirmed & sent');t('Reply sent!','green');await loadStatus();}else t(d.error||'Failed','red');}
     catch{t('Network error','red');}
   };
-const doDelete = async (overrideIds) => {
-  const ids = overrideIds || selected;
-  if (!ids.length) return;
-  setTrashModalIds(ids);
-};
 
-const confirmTrash = async () => {
-  const ids = trashModalIds;
-  const n = ids.length;
-  setTrashModalIds(null);
-  try {
-    const response = await authFetch('/api/gmail-action', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailIds: ids, action: 'trash' })
-    });
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error || 'Failed to move emails to Bin');
-    setEmails(prev => prev.map(email => ids.includes(email.id) ? { ...email, deleted: true } : email));
-    setSelected([]);
-    t(`${n} email${n > 1 ? 's' : ''} moved to Bin successfully`, 'green');
-  } catch (err) {
-    console.error(err);
-    t('Failed to move emails to Bin', 'red');
-  }
-};
+  const doDelete = async (overrideIds) => {
+    const ids = overrideIds || selected;
+    if (!ids.length) return;
+    setTrashModalIds(ids);
+  };
+
+  const confirmTrash = async () => {
+    const ids = trashModalIds;
+    const n = ids.length;
+    setTrashModalIds(null);
+    try {
+      const response = await authFetch('/api/gmail-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailIds: ids, action: 'trash' })
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Failed to move emails to Bin');
+      setEmails(prev => prev.map(email => ids.includes(email.id) ? { ...email, deleted: true } : email));
+      setSelected([]);
+      t(`${n} email${n > 1 ? 's' : ''} moved to Bin successfully`, 'green');
+    } catch (err) {
+      console.error(err);
+      t('Failed to move emails to Bin', 'red');
+    }
+  };
   
   const doBulkDeleteAll=async()=>{
     setBulkDeleting(true);
