@@ -826,6 +826,7 @@ function App(){
   const [showBulkDelModal,setShowBulkDelModal]=useState(false);
   const [bulkDelCats,setBulkDelCats]=useState({inbox:false,important:false,promotions:false,spam:false,bin:false});
   const [bulkDeleting,setBulkDeleting]=useState(false);
+  const [trashModalIds,setTrashModalIds]=useState(null);
 
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('ms_theme',theme);},[theme]);
   useEffect(()=>{
@@ -918,42 +919,25 @@ function App(){
   };
 const doDelete = async (overrideIds) => {
   const ids = overrideIds || selected;
+  if (!ids.length) return;
+  setTrashModalIds(ids);
+};
+
+const confirmTrash = async () => {
+  const ids = trashModalIds;
   const n = ids.length;
-
-  if (!n) return;
-
-  const confirmed = window.confirm(
-    `Are you sure you want to move ${n} email${n > 1 ? 's' : ''} to Bin?`
-  );
-
-  if (!confirmed) return;
-
+  setTrashModalIds(null);
   try {
     const response = await authFetch('/api/gmail-action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        emailIds: ids,
-        action: 'trash'
-      })
+      body: JSON.stringify({ emailIds: ids, action: 'trash' })
     });
     const result = await response.json();
-
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to move emails to Bin');
-    }
-
-    setEmails(prev =>
-      prev.map(email =>
-        ids.includes(email.id)
-          ? { ...email, deleted: true }
-          : email
-      )
-    );
-
+    if (!result.success) throw new Error(result.error || 'Failed to move emails to Bin');
+    setEmails(prev => prev.map(email => ids.includes(email.id) ? { ...email, deleted: true } : email));
     setSelected([]);
     t(`${n} email${n > 1 ? 's' : ''} moved to Bin successfully`, 'green');
-
   } catch (err) {
     console.error(err);
     t('Failed to move emails to Bin', 'red');
@@ -1361,6 +1345,11 @@ const doDelete = async (overrideIds) => {
       onDelete={async(ids)=>{await doDelete(ids);}}
     />}
 
+    {trashModalIds&&<div className="modal-overlay"><div className="modal" style={{maxWidth:320}}>
+      <div className="modal-title">Move to Bin?</div>
+      <div className="modal-body">{`Move ${trashModalIds.length} email${trashModalIds.length>1?'s':''} to Bin? You can restore them from Gmail's Bin within 30 days.`}</div>
+      <div className="modal-actions"><button className="modal-cancel" onClick={()=>setTrashModalIds(null)}>Cancel</button><button className="modal-confirm" style={{background:'#ef4444'}} onClick={confirmTrash}>Yes, Move to Bin</button></div>
+    </div></div>}
     {showLogoutModal&&<div className="modal-overlay"><div className="modal" style={{maxWidth:320}}>
       <div className="modal-title">Sign out?</div>
       <p className="modal-desc">You'll return to the sign-in page. Your data and Gmail connection remain intact.</p>
