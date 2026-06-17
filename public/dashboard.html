@@ -886,7 +886,7 @@ function App(){
     // Fetch fresh emails directly from backend — do NOT rely on stale React state
     let freshEmails=[], pendingIds=[];
     try{
-      const res=await fetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail,maxEmails:500,dateRange})});
+      const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:500,dateRange})});
       const d=await res.json();
       if(d.success){
         addLog('green',`Fetched <strong>${d.fetched}</strong> emails`);
@@ -922,7 +922,7 @@ function App(){
   };
 
   const handleSendReply=async(emailId,customReply)=>{
-    try{const res=await fetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId,mode:'fast',replyTemplate:customReply})});const d=await res.json();if(d.success){addLog('green','Reply confirmed & sent');t('Reply sent!','green');await loadStatus();}else t(d.error||'Failed','red');}
+    try{const res=await authFetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId,mode:'fast',replyTemplate:customReply})});const d=await res.json();if(d.success){addLog('green','Reply confirmed & sent');t('Reply sent!','green');await loadStatus();}else t(d.error||'Failed','red');}
     catch{t('Network error','red');}
   };
 
