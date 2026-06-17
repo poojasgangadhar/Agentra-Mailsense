@@ -7,7 +7,7 @@ const { generateOTP, otpExpiresAt, sendOTPEmail } = require('../mailer');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set!');
-const { signToken } = require('../middleware/auth');
+const { signToken, requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
