@@ -41,6 +41,11 @@ const SCHEMA = `
     promo INTEGER DEFAULT 0, spam INTEGER DEFAULT 0, replied INTEGER DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS user_settings (
+    user_email TEXT NOT NULL, setting_key TEXT NOT NULL, setting_value TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_email, setting_key)
+  );
 `;
 
 function toArgs(sql, args) {
