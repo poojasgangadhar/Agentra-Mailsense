@@ -827,6 +827,14 @@ function App(){
   const [bulkDelCats,setBulkDelCats]=useState({inbox:false,important:false,promotions:false,spam:false,bin:false});
   const [bulkDeleting,setBulkDeleting]=useState(false);
   const [trashModalIds,setTrashModalIds]=useState(null);
+  // Security / passkey state
+  const [passkeys,setPasskeys]=useState([]);
+  const [passkeyLoading,setPasskeyLoading]=useState(false);
+  const [showChangePwModal,setShowChangePwModal]=useState(false);
+  const [changePwData,setChangePwData]=useState({current:'',next:'',confirm:''});
+  const [changePwErr,setChangePwErr]=useState('');
+  const [changePwLoading,setChangePwLoading]=useState(false);
+  const [showBiometricPrompt,setShowBiometricPrompt]=useState(false);
 
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('ms_theme',theme);},[theme]);
   useEffect(()=>{
@@ -988,6 +996,78 @@ function App(){
       t(enabled?'Auto-archive enabled':'Auto-archive disabled',enabled?'green':'amber');
     }catch{t('Failed to save setting','red');}
   };
+
+  // ── Passkey helpers ──────────────────────────────────────────
+  const loadPasskeys=async()=>{
+    try{const r=await authFetch('/api/webauthn/devices');const d=await r.json();setPasskeys(d.devices||[]);}
+    catch{}
+  };
+  useEffect(()=>{if(nav==='settings')loadPasskeys();},[nav]);
+
+  const registerPasskey=async()=>{
+    if(!window.PublicKeyCredential){t('Your browser does not support passkeys','red');return;}
+    setPasskeyLoading(true);
+    try{
+      const optRes=await authFetch('/api/webauthn/register/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+      const opts=await optRes.json();
+      // Convert base64url challenges/ids
+      opts.challenge=base64urlToBuffer(opts.challenge);
+      opts.user.id=base64urlToBuffer(opts.user.id);
+      if(opts.excludeCredentials)opts.excludeCredentials=opts.excludeCredentials.map(c=>({...c,id:base64urlToBuffer(c.id)}));
+      const cred=await navigator.credentials.create({publicKey:opts});
+      const credJSON={
+        id:cred.id,rawId:bufferToBase64url(cred.rawId),type:cred.type,
+        response:{
+          clientDataJSON:bufferToBase64url(cred.response.clientDataJSON),
+          attestationObject:bufferToBase64url(cred.response.attestationObject),
+        }
+      };
+      const deviceName=navigator.userAgent.includes('iPhone')||navigator.userAgent.includes('iPad')?'iPhone/iPad':
+        navigator.userAgent.includes('Android')?'Android Device':
+        navigator.userAgent.includes('Mac')?'Mac':
+        navigator.userAgent.includes('Win')?'Windows PC':'This Device';
+      const verRes=await authFetch('/api/webauthn/register/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({credential:credJSON,deviceName})});
+      const vd=await verRes.json();
+      if(vd.success){t('Biometric login enabled! 🔐','green');loadPasskeys();}
+      else t(vd.error||'Registration failed','red');
+    }catch(e){
+      if(e.name==='NotAllowedError')t('Biometric setup cancelled','amber');
+      else t('Failed to set up biometric login: '+e.message,'red');
+    }
+    setPasskeyLoading(false);
+  };
+
+  const removePasskey=async(id)=>{
+    try{
+      await authFetch('/api/webauthn/devices/'+encodeURIComponent(id),{method:'DELETE'});
+      t('Device removed','amber');loadPasskeys();
+    }catch{t('Failed to remove device','red');}
+  };
+
+  const changePassword=async()=>{
+    const{current,next,confirm}=changePwData;
+    if(!current||!next||!confirm){setChangePwErr('All fields required.');return;}
+    if(next!==confirm){setChangePwErr('New passwords do not match.');return;}
+    if(next.length<8){setChangePwErr('Password must be at least 8 characters.');return;}
+    setChangePwLoading(true);setChangePwErr('');
+    try{
+      const r=await authFetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:current,newPassword:next})});
+      const d=await r.json();
+      if(d.success){t('Password changed successfully','green');setShowChangePwModal(false);setChangePwData({current:'',next:'',confirm:''});}
+      else setChangePwErr(d.error||'Failed to change password.');
+    }catch{setChangePwErr('Network error.');}
+    setChangePwLoading(false);
+  };
+
+  // Base64url helpers for WebAuthn
+  function base64urlToBuffer(b64){
+    const pad=b64.replace(/-/g,'+').replace(/_/g,'/');
+    const bin=atob(pad);return Uint8Array.from(bin,c=>c.charCodeAt(0)).buffer;
+  }
+  function bufferToBase64url(buf){
+    return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  }
+
   const confirmLogout=()=>{sessionStorage.clear();window.location.href='/';};
   const confirmDelete=async()=>{
     setDelErr('');
@@ -1324,6 +1404,34 @@ function App(){
 )}
             </div>
           </div>
+          <div className="panel">
+            <div className="panel-header"><div className="panel-title">🔐 Security</div></div>
+            <div style={{padding:'11px 14px',display:'flex',flexDirection:'column',gap:12}}>
+              <div>
+                <div className="sr-label" style={{marginBottom:4}}>Change Password</div>
+                <div className="sr-sub" style={{marginBottom:8}}>Update your account password.</div>
+                <button className="action-btn" onClick={()=>{setChangePwData({current:'',next:'',confirm:''});setChangePwErr('');setShowChangePwModal(true);}}>Change Password</button>
+              </div>
+              <div style={{borderTop:'1px solid var(--border)',paddingTop:12}}>
+                <div className="sr-label" style={{marginBottom:4}}>Biometric / Passkey Login</div>
+                <div className="sr-sub" style={{marginBottom:8}}>Use fingerprint, Face ID, or Windows Hello to sign in instead of OTP. Works on this device only.</div>
+                <button className="action-btn" onClick={registerPasskey} disabled={passkeyLoading} style={{marginBottom:10}}>
+                  {passkeyLoading?<><span className="spin"/> Setting up…</>:'+ Add Biometric Login'}
+                </button>
+                {passkeys.length>0&&<div>
+                  <div style={{fontSize:'.72rem',fontWeight:600,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'.04em',marginBottom:6}}>Registered Devices</div>
+                  {passkeys.map(pk=>(<div key={pk.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 10px',background:'var(--surface2)',borderRadius:8,marginBottom:5,border:'1px solid var(--border)'}}>
+                    <div>
+                      <div style={{fontSize:'.8rem',fontWeight:600,color:'var(--text)'}}>{pk.device_name||'Device'}</div>
+                      <div style={{fontSize:'.7rem',color:'var(--text-muted)'}}>Added {new Date(pk.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <button onClick={()=>removePasskey(pk.id)} style={{background:'none',border:'1px solid rgba(239,68,68,.4)',color:'#ef4444',borderRadius:6,padding:'3px 9px',fontSize:'.72rem',cursor:'pointer',fontWeight:600}}>Remove</button>
+                  </div>))}
+                </div>}
+                {passkeys.length===0&&<div style={{fontSize:'.75rem',color:'var(--text-muted)',fontStyle:'italic'}}>No biometric devices registered yet.</div>}
+              </div>
+            </div>
+          </div>
           <div className="danger-zone">
             <div className="dz-title">⚠️ Danger Zone</div>
             <div className="dz-desc">Permanently delete your account and all data. Verify your identity first. Cannot be undone.</div>
@@ -1347,6 +1455,20 @@ function App(){
     />}
 
     {trashModalIds&&<div className="modal-overlay"><div className="modal" style={{maxWidth:320}}>
+
+    {showChangePwModal&&<div className="modal-overlay"><div className="modal" style={{maxWidth:360}}>
+      <div className="modal-title">Change Password</div>
+      <div style={{display:'flex',flexDirection:'column',gap:9,margin:'12px 0'}}>
+        <input className="otp-input" style={{fontSize:'.85rem',padding:'9px 12px',textAlign:'left',letterSpacing:'normal',width:'100%',boxSizing:'border-box'}} type="password" placeholder="Current password" value={changePwData.current} onChange={e=>setChangePwData(p=>({...p,current:e.target.value}))}/>
+        <input className="otp-input" style={{fontSize:'.85rem',padding:'9px 12px',textAlign:'left',letterSpacing:'normal',width:'100%',boxSizing:'border-box'}} type="password" placeholder="New password (min 8 chars)" value={changePwData.next} onChange={e=>setChangePwData(p=>({...p,next:e.target.value}))}/>
+        <input className="otp-input" style={{fontSize:'.85rem',padding:'9px 12px',textAlign:'left',letterSpacing:'normal',width:'100%',boxSizing:'border-box'}} type="password" placeholder="Confirm new password" value={changePwData.confirm} onChange={e=>setChangePwData(p=>({...p,confirm:e.target.value}))}/>
+        {changePwErr&&<div style={{color:'#ef4444',fontSize:'.78rem'}}>{changePwErr}</div>}
+      </div>
+      <div className="modal-actions">
+        <button className="modal-cancel" onClick={()=>setShowChangePwModal(false)}>Cancel</button>
+        <button className="modal-confirm accent" onClick={changePassword} disabled={changePwLoading}>{changePwLoading?<><span className="spin" style={{borderTopColor:'white'}}/> Saving…</>:'Change Password'}</button>
+      </div>
+    </div></div>}
       <div className="modal-title">Move to Bin?</div>
       <div className="modal-body">{`Move ${trashModalIds.length} email${trashModalIds.length>1?'s':''} to Bin? You can restore them from Gmail's Bin within 30 days.`}</div>
       <div className="modal-actions"><button className="modal-cancel" onClick={()=>setTrashModalIds(null)}>Cancel</button><button className="modal-confirm" style={{background:'#ef4444'}} onClick={confirmTrash}>Yes, Move to Bin</button></div>

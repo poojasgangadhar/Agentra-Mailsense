@@ -12,8 +12,9 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 
-const authRoutes  = require('./routes/auth');
-const gmailRoutes = require('./routes/gmail');
+const authRoutes    = require('./routes/auth');
+const gmailRoutes   = require('./routes/gmail');
+const webauthnRoutes = require('./routes/webauthn');
 const { startScheduler } = require('./scheduler');
 
 const app  = express();
@@ -41,6 +42,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // ── API Routes ────────────────────────────────────────────────
 app.use('/api', authRoutes);
 app.use('/api', gmailRoutes);
+app.use('/api/webauthn', webauthnRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

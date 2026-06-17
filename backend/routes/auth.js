@@ -219,4 +219,25 @@ router.post('/save-settings', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/change-password', requireAuth, async (req, res) => {
+  const email = req.user.email;
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword)
+    return res.status(400).json({ error: 'currentPassword and newPassword required.' });
+  if (newPassword.length < 8)
+    return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+  try {
+    const user = await stmts.getUserByEmail.get(email);
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect.' });
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await exec('UPDATE users SET password = ? WHERE email = ?', hashed, email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[change-password]', err);
+    res.status(500).json({ error: 'Failed to change password.' });
+  }
+});
+
 module.exports = router;
