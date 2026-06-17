@@ -263,6 +263,23 @@ async function archiveMessages(tokenRow, gmailIds) {
   return results.filter(r => r.status === 'fulfilled').length;
 }
 
+// ── Unarchive (restore to INBOX) ─────────────────────────────
+async function unarchiveMessages(tokenRow, gmailIds) {
+  const auth  = buildAuthorizedClient(tokenRow);
+  const gmail = google.gmail({ version: 'v1', auth });
+
+  const results = await Promise.allSettled(
+    gmailIds.map(id =>
+      gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: { addLabelIds: ['INBOX'] },
+      })
+    )
+  );
+  return results.filter(r => r.status === 'fulfilled').length;
+}
+
 // ── Revoke access token ───────────────────────────────────────
 async function revokeToken(accessToken) {
   try {
@@ -282,5 +299,6 @@ module.exports = {
   saveDraft,
   trashMessages,
   archiveMessages,
+  unarchiveMessages,
   revokeToken,
 };

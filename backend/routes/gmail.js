@@ -111,8 +111,31 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
       if (t?.tag === 'promo' || t?.tag === 'spam') toArchive.push(m.gmail_id);
     }
     if (toArchive.length > 0) {
-      await gmailHelper.archiveMessages(tokenRow, toArchive).catch(() => {});
-      await stmts.insertLog.run(email, 'amber', `Auto-archived <strong>${toArchive.length}</strong> promo/spam emails`);
+      // Check whether the user has disabled auto-archive
+      const archiveSetting = await queryOne(
+        "SELECT setting_value FROM user_settings WHERE user_email = ? AND setting_key = 'auto_archive'",
+        email
+      );
+      const autoArchiveEnabled = archiveSetting ? archiveSetting.setting_value !== 'false' : true;
+
+      if (autoArchiveEnabled) {
+        await gmailHelper.archiveMessages(tokenRow, toArchive).catch(() => {});
+        // Persist the archived gmail_ids so the user can undo within the session
+        await exec(
+          `INSERT INTO user_settings (user_email, setting_key, setting_value)
+           VALUES (?, 'last_auto_archived', ?)
+           ON CONFLICT(user_email, setting_key)
+           DO UPDATE SET setting_value = excluded.setting_value, updated_at = datetime('now')`,
+          email, JSON.stringify(toArchive)
+        );
+        await stmts.insertLog.run(email, 'amber',
+          `Auto-archived <strong>${toArchive.length}</strong> promo/spam emails — <a class="log-undo-link" data-action="undo-auto-archive">Undo</a>`
+        );
+      } else {
+        await stmts.insertLog.run(email, 'blue',
+          `Skipped auto-archive for <strong>${toArchive.length}</strong> promo/spam emails (disabled in Settings)`
+        );
+      }
     }
     const stats = await recomputeStats(email);
     await stmts.insertLog.run(email, 'green', `Fetched <strong>${messages.length}</strong> emails (${newCount} new, classified)`);
@@ -208,6 +231,47 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[gmail-action]', err);
     res.status(500).json({ error: err.message || 'Action failed.' });
+  }
+});
+
+// ── Undo last auto-archive ────────────────────────────────────
+router.post('/undo-auto-archive', requireAuth, async (req, res) => {
+  const email = req.user.email;
+  const tokenRow = await stmts.getToken.get(email);
+  if (!tokenRow) return res.status(400).json({ error: 'Gmail not connected.' });
+  try {
+    const row = await queryOne(
+      "SELECT setting_value FROM user_settings WHERE user_email = ? AND setting_key = 'last_auto_archived'",
+      email
+    );
+    if (!row || !row.setting_value) {
+      return res.status(404).json({ error: 'No recent auto-archive to undo.' });
+    }
+    const gmailIds = JSON.parse(row.setting_value);
+    if (!gmailIds.length) return res.status(404).json({ error: 'Nothing to restore.' });
+
+    await gmailHelper.unarchiveMessages(tokenRow, gmailIds);
+
+    // Mark emails as unarchived in local DB
+    for (const gmailId of gmailIds) {
+      await exec('UPDATE emails SET archived = 0 WHERE user_email = ? AND gmail_id = ?', email, gmailId);
+    }
+
+    // Clear the stored list so this can't be triggered twice
+    await exec(
+      `UPDATE user_settings SET setting_value = '[]', updated_at = datetime('now')
+       WHERE user_email = ? AND setting_key = 'last_auto_archived'`,
+      email
+    );
+
+    await stmts.insertLog.run(email, 'green',
+      `Restored <strong>${gmailIds.length}</strong> email${gmailIds.length !== 1 ? 's' : ''} to Inbox`
+    );
+    await recomputeStats(email);
+    res.json({ success: true, restored: gmailIds.length });
+  } catch (err) {
+    console.error('[undo-auto-archive]', err);
+    res.status(500).json({ error: err.message || 'Undo failed.' });
   }
 });
 

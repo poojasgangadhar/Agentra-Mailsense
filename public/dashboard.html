@@ -240,6 +240,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 .log-dot.blue{background:var(--accent2);}
 .log-text{color:var(--text-muted);flex:1;line-height:1.4;}
 .log-text strong{color:var(--text);font-weight:500;}
+.log-text a.log-undo-link{color:var(--teal);text-decoration:underline;cursor:pointer;font-weight:500;}
 
 /* Agent grid */
 .agent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px 14px;}
@@ -813,6 +814,7 @@ function App(){
   const [dateRange,setDateRange]=useState('7days');
   const [replyTemplate,setReplyTemplate]=useState('Hi,\n\nThank you for your email. I have received your message and will get back to you as soon as possible.\n\nBest regards');
   const [autoDelete,setAutoDelete]=useState(()=>{try{return JSON.parse(localStorage.getItem('ms_autodelete'))||{spam:'7',promo:'30',bin:'30'};}catch{return{spam:'7',promo:'30',bin:'30'};}});
+  const [autoArchive,setAutoArchive]=useState(()=>localStorage.getItem('ms_autoarchive')!=='false');
   const [replyModal,setReplyModal]=useState(null);
   const [openEmail,setOpenEmail]=useState(null); // email detail view
   const [showLogoutModal,setShowLogoutModal]=useState(false);
@@ -974,6 +976,33 @@ const doDelete = async (overrideIds) => {
   };
 
   const changeMode=m=>{setMode(m);localStorage.setItem('ms_mode',m);t(m==='fast'?'⚡ Switched to Fast Mode':'🛡️ Switched to Safe Mode',m==='fast'?'amber':'green');};
+
+  const undoAutoArchive=async()=>{
+    try{
+      const res=await authFetch('/api/undo-auto-archive',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+      const d=await res.json();
+      if(d.success){
+        t(`Restored ${d.restored} email${d.restored!==1?'s':''} to Inbox`,'green');
+        // Refresh logs + email list
+        const s=await authFetch('/api/gmail-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+        const sd=await s.json();
+        if(sd.emails)setEmails(sd.emails);
+        if(sd.stats)setStats(sd.stats);
+        if(sd.logs)setLogs(sd.logs);
+      } else {
+        t(d.error||'Nothing to undo','amber');
+      }
+    }catch(e){t('Undo failed','red');}
+  };
+
+  const saveAutoArchiveSetting=async(enabled)=>{
+    localStorage.setItem('ms_autoarchive',String(enabled));
+    setAutoArchive(enabled);
+    try{
+      await authFetch('/api/save-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'auto_archive',value:String(enabled)})});
+      t(enabled?'Auto-archive enabled':'Auto-archive disabled',enabled?'green':'amber');
+    }catch{t('Failed to save setting','red');}
+  };
   const confirmLogout=()=>{sessionStorage.clear();window.location.href='/';};
   const confirmDelete=async()=>{
     setDelErr('');
@@ -1124,7 +1153,7 @@ const doDelete = async (overrideIds) => {
           </div>
           <div className="panel">
             <div className="panel-header"><div className="panel-title">Agent Logs</div><span className="panel-badge">Live</span></div>
-            <div className="log-list">{logs.slice(0,10).map(l=>(<div key={l.id} className="log-item"><span className="log-time">{l.time}</span><div className={`log-dot ${l.dot}`}/><span className="log-text" dangerouslySetInnerHTML={{__html:l.text}}/></div>))}{logs.length===0&&<div className="empty">No logs yet.</div>}</div>
+            <div className="log-list" onClick={e=>{if(e.target.dataset.action==='undo-auto-archive')undoAutoArchive();}}>{logs.slice(0,10).map(l=>(<div key={l.id} className="log-item"><span className="log-time">{l.time}</span><div className={`log-dot ${l.dot}`}/><span className="log-text" dangerouslySetInnerHTML={{__html:l.text}}/></div>))}{logs.length===0&&<div className="empty">No logs yet.</div>}</div>
           </div>
         </>}
 
@@ -1229,7 +1258,7 @@ const doDelete = async (overrideIds) => {
         {/* ══ LOGS ══ */}
         {nav==='logs'&&<div className="panel">
           <div className="panel-header"><div className="panel-title">Agent Logs</div><span className="panel-badge">{logs.length}</span><button className="action-btn" style={{padding:'3px 9px',fontSize:'.7rem'}} onClick={()=>{setLogs([]);t('Logs cleared','amber');}}>Clear</button></div>
-          <div className="log-list" style={{maxHeight:'65vh'}}>{logs.map(l=>(<div key={l.id} className="log-item"><span className="log-time">{l.time}</span><div className={`log-dot ${l.dot}`}/><span className="log-text" dangerouslySetInnerHTML={{__html:l.text}}/></div>))}{logs.length===0&&<div className="empty">No logs yet.</div>}</div>
+          <div className="log-list" style={{maxHeight:'65vh'}} onClick={e=>{if(e.target.dataset.action==='undo-auto-archive')undoAutoArchive();}}>{logs.map(l=>(<div key={l.id} className="log-item"><span className="log-time">{l.time}</span><div className={`log-dot ${l.dot}`}/><span className="log-text" dangerouslySetInnerHTML={{__html:l.text}}/></div>))}{logs.length===0&&<div className="empty">No logs yet.</div>}</div>
         </div>}
 
         {/* ══ SETTINGS ══ */}
@@ -1254,6 +1283,21 @@ const doDelete = async (overrideIds) => {
                 <div style={{fontSize:'.7rem',color:'var(--text-dim)',marginTop:5}}>💡 In Safe Mode you can add per-email context when reviewing each reply.</div>
               </div>
               <button className="action-btn primary" style={{alignSelf:'flex-start'}} onClick={()=>t('Template saved!','green')}>{I.check} Save Template</button>
+            </div>
+          </div>
+          <div className="panel">
+            <div className="panel-header"><div className="panel-title">Auto-Archive</div></div>
+            <div style={{padding:'11px 14px',display:'flex',flexDirection:'column',gap:7}}>
+              <div className="settings-row">
+                <div>
+                  <div className="sr-label">Auto-archive promo &amp; spam on fetch</div>
+                  <div className="sr-sub">When enabled, promo and spam emails are removed from your Inbox automatically after each fetch. You can undo the last batch from the Agent Logs.</div>
+                </div>
+                <label className="toggle-switch">
+                  <input type="checkbox" checked={autoArchive} onChange={e=>saveAutoArchiveSetting(e.target.checked)}/>
+                  <span className="toggle-slider"/>
+                </label>
+              </div>
             </div>
           </div>
           <div className="panel">
