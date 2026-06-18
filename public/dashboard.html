@@ -719,7 +719,7 @@ function FastAnalyzer({emails,userEmail,replyTemplate,t}){
 }
 
 /* ── Email Detail Modal ── */
-function EmailDetailModal({email, mode, userEmail, onClose, onReply, onDelete, onRestore, onPermDelete}){
+function EmailDetailModal({email, mode, userEmail, onClose, onReply, onDelete, onRestore, onPermDelete, isBin}){
   const [delConfirm,setDelConfirm]=useState(false);
   const [deleting,setDeleting]=useState(false);
 
@@ -762,7 +762,7 @@ function EmailDetailModal({email, mode, userEmail, onClose, onReply, onDelete, o
       </div>
 
       {/* Actions */}
-      {email.deleted?(
+      {isBin?(
         /* ── Bin view: Restore or Permanently Delete ── */
         !delConfirm?(
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
@@ -1522,6 +1522,7 @@ function App(){
       email={openEmail}
       mode={mode}
       userEmail={userEmail}
+      isBin={nav==='bin'}
       onClose={()=>setOpenEmail(null)}
       onReply={em=>{setOpenEmail(null);setReplyModal(em);}}
       onDelete={async(ids)=>{await doDelete(ids);}}
