@@ -1457,8 +1457,6 @@ function App(){
       onDelete={async(ids)=>{await doDelete(ids);}}
     />}
 
-    {trashModalIds&&<div className="modal-overlay"><div className="modal" style={{maxWidth:320}}>
-
     {showChangePwModal&&<div className="modal-overlay"><div className="modal" style={{maxWidth:360}}>
       <div className="modal-title">Change Password</div>
       <div style={{display:'flex',flexDirection:'column',gap:9,margin:'12px 0'}}>
@@ -1472,6 +1470,8 @@ function App(){
         <button className="modal-confirm accent" onClick={changePassword} disabled={changePwLoading}>{changePwLoading?<><span className="spin" style={{borderTopColor:'white'}}/> Saving…</>:'Change Password'}</button>
       </div>
     </div></div>}
+
+    {trashModalIds&&<div className="modal-overlay"><div className="modal" style={{maxWidth:320}}>
       <div className="modal-title">Move to Bin?</div>
       <div className="modal-body">{`Move ${trashModalIds.length} email${trashModalIds.length>1?'s':''} to Bin? You can restore them from Gmail's Bin within 30 days.`}</div>
       <div className="modal-actions"><button className="modal-cancel" onClick={()=>setTrashModalIds(null)}>Cancel</button><button className="modal-confirm" style={{background:'#ef4444'}} onClick={confirmTrash}>Yes, Move to Bin</button></div>
