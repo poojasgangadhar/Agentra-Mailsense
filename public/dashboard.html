@@ -719,7 +719,7 @@ function FastAnalyzer({emails,userEmail,replyTemplate,t}){
 }
 
 /* ── Email Detail Modal ── */
-function EmailDetailModal({email, mode, userEmail, onClose, onReply, onDelete}){
+function EmailDetailModal({email, mode, userEmail, onClose, onReply, onDelete, onRestore, onPermDelete}){
   const [delConfirm,setDelConfirm]=useState(false);
   const [deleting,setDeleting]=useState(false);
 
@@ -762,29 +762,56 @@ function EmailDetailModal({email, mode, userEmail, onClose, onReply, onDelete}){
       </div>
 
       {/* Actions */}
-      {!delConfirm?(
-        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          {!email.replied&&email.tag==='important'&&mode==='safe'&&(
-            <button className="action-btn teal" onClick={()=>{onClose();onReply(email);}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Review & Reply
+      {email.deleted?(
+        /* ── Bin view: Restore or Permanently Delete ── */
+        !delConfirm?(
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <button className="action-btn teal" onClick={async()=>{await onRestore([email.id]);onClose();}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.45"/></svg> Restore to Inbox
             </button>
-          )}
-          <button className="action-btn danger" onClick={()=>setDelConfirm(true)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Move to Bin
-          </button>
-          <button className="action-btn" onClick={onClose} style={{marginLeft:'auto'}}>Close</button>
-        </div>
-      ):(
-        <div style={{background:'rgba(248,113,113,.06)',border:'1px solid rgba(248,113,113,.2)',borderRadius:8,padding:'12px 14px'}}>
-          <div style={{fontSize:'.8rem',fontWeight:600,color:'var(--red)',marginBottom:4}}>Move to Bin?</div>
-          <div style={{fontSize:'.74rem',color:'var(--text-muted)',marginBottom:10}}>This will move the email to Bin in this dashboard <strong>and in your real Gmail inbox</strong>.</div>
-          <div style={{display:'flex',gap:7}}>
-            <button className="action-btn" onClick={()=>setDelConfirm(false)}>Cancel</button>
-            <button className="action-btn danger" onClick={handleDelete} disabled={deleting}>
-              {deleting?<><span className="spin"/> Moving…</>:'Yes, Move to Bin'}
+            <button className="action-btn danger" onClick={()=>setDelConfirm(true)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Delete Forever
             </button>
+            <button className="action-btn" onClick={onClose} style={{marginLeft:'auto'}}>Close</button>
           </div>
-        </div>
+        ):(
+          <div style={{background:'rgba(248,113,113,.06)',border:'1px solid rgba(248,113,113,.2)',borderRadius:8,padding:'12px 14px'}}>
+            <div style={{fontSize:'.8rem',fontWeight:600,color:'var(--red)',marginBottom:4}}>Delete Forever?</div>
+            <div style={{fontSize:'.74rem',color:'var(--text-muted)',marginBottom:10}}>This will <strong>permanently delete</strong> this email from Gmail. It cannot be recovered.</div>
+            <div style={{display:'flex',gap:7}}>
+              <button className="action-btn" onClick={()=>setDelConfirm(false)}>Cancel</button>
+              <button className="action-btn danger" onClick={async()=>{setDeleting(true);await onPermDelete([email.id]);setDeleting(false);onClose();}} disabled={deleting}>
+                {deleting?<><span className="spin"/> Deleting…</>:'Yes, Delete Forever'}
+              </button>
+            </div>
+          </div>
+        )
+      ):(
+        /* ── Normal view: Move to Bin ── */
+        !delConfirm?(
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            {!email.replied&&email.tag==='important'&&mode==='safe'&&(
+              <button className="action-btn teal" onClick={()=>{onClose();onReply(email);}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Review & Reply
+              </button>
+            )}
+            <button className="action-btn danger" onClick={()=>setDelConfirm(true)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Move to Bin
+            </button>
+            <button className="action-btn" onClick={onClose} style={{marginLeft:'auto'}}>Close</button>
+          </div>
+        ):(
+          <div style={{background:'rgba(248,113,113,.06)',border:'1px solid rgba(248,113,113,.2)',borderRadius:8,padding:'12px 14px'}}>
+            <div style={{fontSize:'.8rem',fontWeight:600,color:'var(--red)',marginBottom:4}}>Move to Bin?</div>
+            <div style={{fontSize:'.74rem',color:'var(--text-muted)',marginBottom:10}}>This will move the email to Bin in this dashboard <strong>and in your real Gmail inbox</strong>.</div>
+            <div style={{display:'flex',gap:7}}>
+              <button className="action-btn" onClick={()=>setDelConfirm(false)}>Cancel</button>
+              <button className="action-btn danger" onClick={handleDelete} disabled={deleting}>
+                {deleting?<><span className="spin"/> Moving…</>:'Yes, Move to Bin'}
+              </button>
+            </div>
+          </div>
+        )
       )}
     </div>
   </div>);
@@ -924,6 +951,47 @@ function App(){
   const handleSendReply=async(emailId,customReply)=>{
     try{const res=await authFetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId,mode:'fast',replyTemplate:customReply})});const d=await res.json();if(d.success){addLog('green','Reply confirmed & sent');t('Reply sent!','green');await loadStatus();}else t(d.error||'Failed','red');}
     catch{t('Network error','red');}
+  };
+
+  const [permDeleteIds,setPermDeleteIds]=useState(null);
+
+  const doRestore = async (overrideIds) => {
+    const ids = overrideIds || selected;
+    if (!ids.length) return;
+    try {
+      const res = await authFetch('/api/gmail-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailIds: ids, action: 'restore' }) });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error || 'Restore failed');
+      setEmails(prev => prev.map(e => ids.includes(e.id) ? { ...e, deleted: false } : e));
+      setSelected([]);
+      t(`${ids.length} email${ids.length > 1 ? 's' : ''} restored to Inbox`, 'green');
+    } catch (err) {
+      console.error(err);
+      t('Failed to restore emails', 'red');
+    }
+  };
+
+  const doPermDelete = (overrideIds) => {
+    const ids = overrideIds || selected;
+    if (!ids.length) return;
+    setPermDeleteIds(ids);
+  };
+
+  const confirmPermDelete = async () => {
+    const ids = permDeleteIds;
+    const n = ids.length;
+    setPermDeleteIds(null);
+    try {
+      const res = await authFetch('/api/gmail-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emailIds: ids, action: 'permanent_delete' }) });
+      const d = await res.json();
+      if (!d.success) throw new Error(d.error || 'Delete failed');
+      setEmails(prev => prev.filter(e => !ids.includes(e.id)));
+      setSelected([]);
+      t(`${n} email${n > 1 ? 's' : ''} permanently deleted`, 'red');
+    } catch (err) {
+      console.error(err);
+      t('Failed to permanently delete emails', 'red');
+    }
   };
 
   const doDelete = async (overrideIds) => {
@@ -1268,10 +1336,12 @@ function App(){
               <option value="">Category…</option><option value="spam">All Spam</option><option value="promo">All Promos</option><option value="important">All Important</option>
             </select>
             {selected.length>0&&nav!=='bin'&&<button className="action-btn danger" onClick={()=>doDelete()}>{I.bin} Move {selected.length} to Bin</button>}
+            {selected.length>0&&nav==='bin'&&<><button className="action-btn teal" onClick={()=>doRestore()}>{I.check} Restore {selected.length}</button><button className="action-btn danger" onClick={()=>doPermDelete()}>{I.bin} Delete Forever ({selected.length})</button></>}
           </div>
           <div className="panel">
             <div className="panel-header"><div className="panel-title">{titles[nav]}</div><span className="panel-badge">{filteredEmails(nav).length} emails</span></div>
             {selected.length>0&&nav!=='bin'&&<div className="del-toolbar"><span>{selected.length} selected</span><button className="btn-del" onClick={()=>doDelete()}>{I.bin} Move to Bin</button><button className="action-btn" style={{padding:'4px 9px',fontSize:'.7rem'}} onClick={clearSel}>Cancel</button></div>}
+            {selected.length>0&&nav==='bin'&&<div className="del-toolbar"><span>{selected.length} selected</span><button className="btn-del teal" style={{background:'var(--teal)',color:'#0d1117'}} onClick={()=>doRestore()}>{I.check} Restore</button><button className="btn-del" onClick={()=>doPermDelete()}>{I.bin} Delete Forever</button><button className="action-btn" style={{padding:'4px 9px',fontSize:'.7rem'}} onClick={clearSel}>Cancel</button></div>}
             <div className="email-list">
               {filteredEmails(nav).map(em=>(
                 <div key={em.id} className="email-item" onClick={()=>setOpenEmail(em)}>
@@ -1455,6 +1525,8 @@ function App(){
       onClose={()=>setOpenEmail(null)}
       onReply={em=>{setOpenEmail(null);setReplyModal(em);}}
       onDelete={async(ids)=>{await doDelete(ids);}}
+      onRestore={async(ids)=>{await doRestore(ids);setOpenEmail(null);}}
+      onPermDelete={(ids)=>{setOpenEmail(null);doPermDelete(ids);}}
     />}
 
     {showChangePwModal&&<div className="modal-overlay"><div className="modal" style={{maxWidth:360}}>
@@ -1475,6 +1547,12 @@ function App(){
       <div className="modal-title">Move to Bin?</div>
       <div className="modal-body">{`Move ${trashModalIds.length} email${trashModalIds.length>1?'s':''} to Bin? You can restore them from Gmail's Bin within 30 days.`}</div>
       <div className="modal-actions"><button className="modal-cancel" onClick={()=>setTrashModalIds(null)}>Cancel</button><button className="modal-confirm" style={{background:'#ef4444'}} onClick={confirmTrash}>Yes, Move to Bin</button></div>
+    </div></div>}
+
+    {permDeleteIds&&<div className="modal-overlay"><div className="modal" style={{maxWidth:340}}>
+      <div className="modal-title">⚠️ Delete Forever?</div>
+      <div className="modal-body">{`Permanently delete ${permDeleteIds.length} email${permDeleteIds.length>1?'s':''}? This cannot be undone — they will be gone from Gmail forever.`}</div>
+      <div className="modal-actions"><button className="modal-cancel" onClick={()=>setPermDeleteIds(null)}>Cancel</button><button className="modal-confirm" style={{background:'#ef4444'}} onClick={confirmPermDelete}>Yes, Delete Forever</button></div>
     </div></div>}
     {showLogoutModal&&<div className="modal-overlay"><div className="modal" style={{maxWidth:320}}>
       <div className="modal-title">Sign out?</div>

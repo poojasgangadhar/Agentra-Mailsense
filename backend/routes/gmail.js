@@ -211,7 +211,37 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
       count = count || emailIds.length;
       await stmts.insertLog.run(userEmail, 'red', `Moved <strong>${count}</strong> email${count !== 1 ? 's' : ''} to Bin`);
     }
-    if (action === 'archive') {
+    if (action === 'restore') {
+      if (tokenRow) {
+        const gmailIds = [];
+        for (const id of emailIds) {
+          const row = await queryOne('SELECT gmail_id FROM emails WHERE id = ?', id);
+          if (row?.gmail_id) gmailIds.push(row.gmail_id);
+        }
+        if (gmailIds.length) await gmailHelper.untrashMessages(tokenRow, gmailIds);
+      }
+      for (const id of emailIds) {
+        await exec('UPDATE emails SET deleted = 0 WHERE user_email = ? AND id = ?', userEmail, id);
+      }
+      count = emailIds.length;
+      await stmts.insertLog.run(userEmail, 'green', `Restored <strong>${count}</strong> email${count !== 1 ? 's' : ''} to Inbox`);
+    }
+    if (action === 'permanent_delete') {
+      if (tokenRow) {
+        const gmailIds = [];
+        for (const id of emailIds) {
+          const row = await queryOne('SELECT gmail_id FROM emails WHERE id = ?', id);
+          if (row?.gmail_id) gmailIds.push(row.gmail_id);
+        }
+        if (gmailIds.length) await gmailHelper.permanentlyDeleteMessages(tokenRow, gmailIds);
+      }
+      for (const id of emailIds) {
+        await exec('DELETE FROM emails WHERE user_email = ? AND id = ?', userEmail, id);
+      }
+      count = emailIds.length;
+      await stmts.insertLog.run(userEmail, 'red', `Permanently deleted <strong>${count}</strong> email${count !== 1 ? 's' : ''}`);
+    }
+
       if (tokenRow) {
         const gmailIds = [];
         for (const id of emailIds) {

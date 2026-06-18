@@ -263,6 +263,28 @@ async function archiveMessages(tokenRow, gmailIds) {
   return results.filter(r => r.status === 'fulfilled').length;
 }
 
+// ── Untrash (restore from Bin to INBOX) ──────────────────────
+async function untrashMessages(tokenRow, gmailIds) {
+  const auth  = buildAuthorizedClient(tokenRow);
+  const gmail = google.gmail({ version: 'v1', auth });
+
+  const results = await Promise.allSettled(
+    gmailIds.map(id => gmail.users.messages.untrash({ userId: 'me', id }))
+  );
+  return results.filter(r => r.status === 'fulfilled').length;
+}
+
+// ── Permanently delete (irreversible) ────────────────────────
+async function permanentlyDeleteMessages(tokenRow, gmailIds) {
+  const auth  = buildAuthorizedClient(tokenRow);
+  const gmail = google.gmail({ version: 'v1', auth });
+
+  const results = await Promise.allSettled(
+    gmailIds.map(id => gmail.users.messages.delete({ userId: 'me', id }))
+  );
+  return results.filter(r => r.status === 'fulfilled').length;
+}
+
 // ── Unarchive (restore to INBOX) ─────────────────────────────
 async function unarchiveMessages(tokenRow, gmailIds) {
   const auth  = buildAuthorizedClient(tokenRow);
@@ -300,5 +322,7 @@ module.exports = {
   trashMessages,
   archiveMessages,
   unarchiveMessages,
+  untrashMessages,
+  permanentlyDeleteMessages,
   revokeToken,
 };
