@@ -624,9 +624,10 @@ function ReplyModal({email, userEmail, replyTemplate, onClose, onSend}){
     setGenerating(true);setErr('');
     try{
       const res=await authFetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId:email.id,replyTemplate,customContext:context||undefined})});
+      const d=await res.json();
       if(d.success)setReply(d.reply);
       else setErr(d.error||'Generation failed');
-    }catch{setErr('Network error. Make sure Mistral API key is set.');}
+    }catch{setErr('Network error generating reply.');}
     setGenerating(false);
   };
 
