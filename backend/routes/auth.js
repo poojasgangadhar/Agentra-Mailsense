@@ -5,8 +5,15 @@ const { google } = require('googleapis');
 const { db, stmts, exec, queryOne } = require('../db');
 const { generateOTP, otpExpiresAt, sendOTPEmail } = require('../mailer');
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set!');
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_change_me';
+if (!process.env.JWT_SECRET) {
+  // Do NOT throw here — this file is required at serverless module-load
+  // time (api/index.js -> server.js -> routes/auth.js), before Express
+  // even starts. Throwing crashes the entire function for every route.
+  // Falls back to the same default middleware/auth.js uses, so tokens
+  // stay valid across both files. Set JWT_SECRET in Vercel for production.
+  console.error('[auth] WARNING: JWT_SECRET env var is not set. Using an insecure fallback — set it in Vercel Project Settings for production.');
+}
 const { signToken, requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
@@ -52,7 +59,7 @@ router.get('/google-callback', async (req, res) => {
     if (!user) {
       const first_name = given_name || name?.split(' ')[0] || 'User';
       const last_name  = family_name || name?.split(' ').slice(1).join(' ') || '';
-      const hash = await bcrypt.hash(google_id + process.env.JWT_SECRET, 12);
+      const hash = await bcrypt.hash(google_id + JWT_SECRET, 12);
       await stmts.createUser.run({ first_name, last_name, email, password: hash, role: 'user', is_verified: 1 });
       user = await stmts.getUserByEmail.get(email);
     } else if (!user.is_verified) {

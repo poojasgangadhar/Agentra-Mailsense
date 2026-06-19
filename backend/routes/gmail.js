@@ -241,7 +241,7 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
       count = emailIds.length;
       await stmts.insertLog.run(userEmail, 'red', `Permanently deleted <strong>${count}</strong> email${count !== 1 ? 's' : ''}`);
     }
-
+    if (action === 'archive') {
       if (tokenRow) {
         const gmailIds = [];
         for (const id of emailIds) {

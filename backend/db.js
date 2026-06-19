@@ -6,10 +6,23 @@ if (!process.env.TURSO_URL || !process.env.TURSO_TOKEN) {
   console.error('[db] FATAL: TURSO_URL or TURSO_TOKEN env var is missing. Set them in Vercel Project Settings → Environment Variables (Production).');
 }
 
-const db = createClient({
-  url: process.env.TURSO_URL,
-  authToken: process.env.TURSO_TOKEN,
-});
+// createClient() validates the URL SYNCHRONOUSLY and throws immediately
+// if it's missing/malformed — that's a require()-time crash, which takes
+// down the whole serverless function for every route before any request
+// handling or error middleware ever runs. Guard it so a misconfigured
+// env var becomes a normal rejected promise instead, which the existing
+// initPromise.catch(next) / global error handler can turn into a clean
+// JSON 500.
+let db;
+if (process.env.TURSO_URL && process.env.TURSO_TOKEN) {
+  db = createClient({
+    url: process.env.TURSO_URL,
+    authToken: process.env.TURSO_TOKEN,
+  });
+} else {
+  const configError = () => Promise.reject(new Error('Database not configured: TURSO_URL/TURSO_TOKEN env vars are missing.'));
+  db = { execute: configError, executeMultiple: configError };
+}
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS users (
