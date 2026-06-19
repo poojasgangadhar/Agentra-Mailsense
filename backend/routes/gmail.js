@@ -2,7 +2,7 @@
 const express = require('express');
 const { db, stmts, recomputeStats, markEmailsDeleted, queryOne, exec } = require('../db');
 const gmailHelper = require('../gmail');
-const { classifyEmail, generateReply } = require('../mistral');
+const { classifyEmail, generateReply, isNoReplyEmail } = require('../mistral');
 const { requireAuth, verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -140,7 +140,10 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
     const stats = await recomputeStats(email);
     await stmts.insertLog.run(email, 'green', `Fetched <strong>${messages.length}</strong> emails (${newCount} new, classified)`);
     const allEmails = await stmts.getEmails.all(email);
-    const pendingImportant = allEmails.filter(e => e.tag === 'important' && !e.replied && !e.deleted).map(e => e.id);
+    const pendingImportant = allEmails
+      .filter(e => e.tag === 'important' && !e.replied && !e.deleted)
+      .filter(e => !isNoReplyEmail(e.from_addr, e.subject, e.snippet))
+      .map(e => e.id);
     res.json({
       success: true, fetched: messages.length, new_classified: newCount, stats,
       emails: allEmails.map(row => ({
@@ -167,6 +170,9 @@ router.post('/gmail-reply', requireAuth, async (req, res) => {
   const emailRow = await queryOne('SELECT * FROM emails WHERE id = ? AND user_email = ?', emailId, userEmail);
   if (!emailRow) return res.status(404).json({ error: 'Email not found.' });
   if (emailRow.replied) return res.json({ success: true, skipped: true, message: 'Already replied.' });
+  if (mode === 'fast' && isNoReplyEmail(emailRow.from_addr, emailRow.subject, emailRow.snippet)) {
+    return res.json({ success: false, skipped: true, message: 'Skipped — automated/no-reply sender.' });
+  }
   try {
     const replyBody = await generateReply({ subject: emailRow.subject, snippet: emailRow.snippet, fromName: emailRow.from_name, replyTemplate });
     const params = { from: userEmail, to: emailRow.from_addr, subject: emailRow.subject, messageId: emailRow.gmail_id, threadId: emailRow.thread_id, body: replyBody };
