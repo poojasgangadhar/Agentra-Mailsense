@@ -22,8 +22,6 @@ async function mistralChat(messages, maxTokens = 300) {
 }
 
 // ── Self-sent-email detection ──────────────────────────────────
-// Exact-match check: "did the user send this to themselves" — not
-// content-based classification, just identity.
 function isSelfSent(fromAddr = '', userOwnEmail = '') {
   if (!userOwnEmail || !fromAddr) return false;
   const addr = (fromAddr.match(/<(.+?)>/) || [])[1] || fromAddr;
@@ -31,11 +29,6 @@ function isSelfSent(fromAddr = '', userOwnEmail = '') {
 }
 
 // ── No-reply / automated sender detection ─────────────────────
-// IMPORTANT: this is NOT used to decide what tag an email gets.
-// It exists only to decide whether it's safe to send an automated
-// reply to a given email (Fast Mode / pendingImportant queue) —
-// replying to a noreply@/OTP/alert address is pointless or harmful
-// even when the email itself is genuinely important to the user.
 const NO_REPLY_PATTERNS = [
   'noreply', 'no-reply', 'donotreply', 'do-not-reply',
   'notifications@', 'notification@', 'alerts@', 'alert@',
@@ -78,8 +71,6 @@ const PROMO_KEYWORDS = [
   'unsubscribe','weekly digest','daily deals','special offer',
   'discount','deal of the day','limited time',
 ];
-// Automated mail that the user still needs to see/act on — never
-// downgrade these to promo just because they're automated.
 const ACTIONABLE_KEYWORDS = [
   'otp', 'verification code', 'one-time password', 'security code',
   'verify your', 'confirm your account', 'password reset', 'reset your password',
@@ -106,7 +97,6 @@ function ruleBasedClassify(subject = '', snippet = '', fromAddr = '', userOwnEma
 
 // ── Classify email ────────────────────────────────────────────
 async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmail }) {
-  // Self-email → always important
   if (isSelfSent(fromAddr, userOwnEmail)) return 'important';
 
   if (!getMistralKey()) {
@@ -142,13 +132,44 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
 }
 
 // ── Generate reply ────────────────────────────────────────────
-async function generateReply({ subject, snippet, fromName, replyTemplate, customContext, senderFirstName }) {
-  const signOff = senderFirstName || '';
+// IMPORTANT: senderFirstName / senderLastName must be the user's
+// actual signup name pulled from the DB by the caller (e.g. the
+// route handler that has access to req.user). This function will
+// NOT invent a name, and will never emit a bracketed placeholder
+// like "[Your Name]" — if no real name is supplied, it falls back
+// to a generic sign-off with no name at all rather than a placeholder.
+function buildSignOff(senderFirstName, senderLastName) {
+  const first = (senderFirstName || '').trim();
+  const last  = (senderLastName || '').trim();
+  const full  = [first, last].filter(Boolean).join(' ');
+  return full; // '' if neither was provided
+}
+
+async function generateReply({
+  subject,
+  snippet,
+  fromName,
+  replyTemplate,
+  customContext,
+  senderFirstName,
+  senderLastName,
+}) {
+  const signOff = buildSignOff(senderFirstName, senderLastName);
+  const closing = signOff ? `Best regards,\n${signOff}` : 'Best regards';
+
   if (!getMistralKey()) {
-    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for your email. I'll get back to you shortly.\n\nBest regards${signOff ? `,\n${signOff}` : ''}`;
+    return replyTemplate ||
+      `Hi ${fromName || 'there'},\n\nThank you for your email. I'll get back to you shortly.\n\n${closing}`;
   }
 
   const contextNote = customContext ? `\nAdditional context from user: ${customContext}` : '';
+
+  // Build the sign-off instruction without ever exposing a
+  // placeholder-shaped fallback string to the model.
+  const signOffInstruction = signOff
+    ? `- End the reply with exactly: "Best regards,\\n${signOff}" — use this exact name, do not alter it, do not invent a different name.`
+    : `- End the reply with exactly: "Best regards," with nothing after it on the next line — no name, and absolutely no placeholder text such as "[Your Name]", "[Sender Name]", "[Company]", or similar bracketed text.`;
+
   const messages = [
     {
       role: 'system',
@@ -158,11 +179,9 @@ async function generateReply({ subject, snippet, fromName, replyTemplate, custom
         '- Write 2-4 sentences tailored specifically to the email content\n' +
         '- Reference the actual subject or content of their email\n' +
         '- Sound natural and human, not generic\n' +
-        '- Do NOT use placeholder text like [Your Name] or [Company]\n' +
+        '- Do NOT use placeholder text like [Your Name], [Sender Name], or [Company] under any circumstance\n' +
         '- Do NOT include subject line\n' +
-        '- Do NOT include signature\n' +
-        '- Start with greeting like "Hi [their name]," or "Hello,"\n' +
-        `- End the reply naturally with "Best regards,\\n${signOff || '[sender name]'}" — always use "${signOff || 'the sender\'s first name'}" as the sign-off, never a placeholder\n` +
+        signOffInstruction + '\n' +
         '- Every reply must be UNIQUE and specific to this email',
     },
     {
@@ -172,12 +191,22 @@ async function generateReply({ subject, snippet, fromName, replyTemplate, custom
   ];
 
   try {
-    const reply = await mistralChat(messages, 250);
+    let reply = await mistralChat(messages, 250);
+
+    // Hard safety net: if the model still slips in a bracketed
+    // placeholder, strip it and re-append the real (or name-less) closing.
+    if (/\[\s*(your|sender'?s?)\s*name\s*\]/i.test(reply) || /\[\s*company\s*\]/i.test(reply)) {
+      reply = reply.replace(/best regards,?[\s\S]*$/i, '').trim();
+      reply = `${reply}\n\n${closing}`;
+    }
+
     if (reply && reply.length > 20) return reply;
-    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll review this and get back to you shortly.\n\nBest regards${signOff ? `,\n${signOff}` : ''}`;
+    return replyTemplate ||
+      `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll review this and get back to you shortly.\n\n${closing}`;
   } catch (err) {
     console.error('[Mistral] generateReply error:', err.message);
-    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll get back to you shortly.\n\nBest regards${signOff ? `,\n${signOff}` : ''}`;
+    return replyTemplate ||
+      `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll get back to you shortly.\n\n${closing}`;
   }
 }
 
