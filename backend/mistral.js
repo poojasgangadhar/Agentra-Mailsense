@@ -142,9 +142,10 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
 }
 
 // ── Generate reply ────────────────────────────────────────────
-async function generateReply({ subject, snippet, fromName, replyTemplate, customContext }) {
+async function generateReply({ subject, snippet, fromName, replyTemplate, customContext, senderFirstName }) {
+  const signOff = senderFirstName || '';
   if (!getMistralKey()) {
-    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for your email. I'll get back to you shortly.\n\nBest regards`;
+    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for your email. I'll get back to you shortly.\n\nBest regards${signOff ? `,\n${signOff}` : ''}`;
   }
 
   const contextNote = customContext ? `\nAdditional context from user: ${customContext}` : '';
@@ -161,6 +162,7 @@ async function generateReply({ subject, snippet, fromName, replyTemplate, custom
         '- Do NOT include subject line\n' +
         '- Do NOT include signature\n' +
         '- Start with greeting like "Hi [their name]," or "Hello,"\n' +
+        `- End the reply naturally with "Best regards,\\n${signOff || '[sender name]'}" — always use "${signOff || 'the sender\'s first name'}" as the sign-off, never a placeholder\n` +
         '- Every reply must be UNIQUE and specific to this email',
     },
     {
@@ -172,10 +174,10 @@ async function generateReply({ subject, snippet, fromName, replyTemplate, custom
   try {
     const reply = await mistralChat(messages, 250);
     if (reply && reply.length > 20) return reply;
-    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll review this and get back to you shortly.\n\nBest regards`;
+    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll review this and get back to you shortly.\n\nBest regards${signOff ? `,\n${signOff}` : ''}`;
   } catch (err) {
     console.error('[Mistral] generateReply error:', err.message);
-    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll get back to you shortly.\n\nBest regards`;
+    return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for reaching out regarding "${subject}". I'll get back to you shortly.\n\nBest regards${signOff ? `,\n${signOff}` : ''}`;
   }
 }
 

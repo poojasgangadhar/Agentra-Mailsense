@@ -174,7 +174,9 @@ router.post('/gmail-reply', requireAuth, async (req, res) => {
     return res.json({ success: false, skipped: true, message: 'Skipped — automated/no-reply sender.' });
   }
   try {
-    const replyBody = await generateReply({ subject: emailRow.subject, snippet: emailRow.snippet, fromName: emailRow.from_name, replyTemplate });
+    const userRow = await stmts.getUserByEmail.get(userEmail);
+    const senderFirstName = userRow?.first_name || '';
+    const replyBody = await generateReply({ subject: emailRow.subject, snippet: emailRow.snippet, fromName: emailRow.from_name, replyTemplate, senderFirstName });
     const params = { from: userEmail, to: emailRow.from_addr, subject: emailRow.subject, messageId: emailRow.gmail_id, threadId: emailRow.thread_id, body: replyBody };
     let action, logMsg;
     if (mode === 'fast') {
@@ -327,9 +329,12 @@ router.post('/gmail-generate-reply', requireAuth, async (req, res) => {
   const emailRow = await queryOne('SELECT * FROM emails WHERE id = ? AND user_email = ?', emailId, userEmail);
   if (!emailRow) return res.status(404).json({ error: 'Email not found.' });
   try {
+    const userRow = await stmts.getUserByEmail.get(userEmail);
+    const senderFirstName = userRow?.first_name || '';
     const replyBody = await generateReply({
       subject: emailRow.subject, snippet: emailRow.snippet, fromName: emailRow.from_name,
       replyTemplate: customContext ? `Context from user: ${customContext}\n\n${replyTemplate || ''}` : replyTemplate,
+      senderFirstName,
     });
     res.json({ success: true, reply: replyBody, email: { from: emailRow.from_name || emailRow.from_addr, subject: emailRow.subject, snippet: emailRow.snippet } });
   } catch (err) {
