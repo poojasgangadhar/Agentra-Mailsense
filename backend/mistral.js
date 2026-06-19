@@ -1,12 +1,15 @@
 // backend/mistral.js — Mistral AI + classifier
 const fetch = require('node-fetch');
-require('dotenv').config();
 
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || '';
-const MISTRAL_MODEL   = process.env.MISTRAL_MODEL   || 'mistral-small-latest';
-const MISTRAL_URL     = 'https://api.mistral.ai/v1/chat/completions';
+const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
+
+// Read keys dynamically so Vercel env vars are always picked up at runtime
+function getMistralKey()   { return process.env.MISTRAL_API_KEY || ''; }
+function getMistralModel() { return process.env.MISTRAL_MODEL   || 'mistral-small-latest'; }
 
 async function mistralChat(messages, maxTokens = 300) {
+  const MISTRAL_API_KEY = getMistralKey();
+  const MISTRAL_MODEL   = getMistralModel();
   if (!MISTRAL_API_KEY) throw new Error('MISTRAL_API_KEY not set');
   const res = await fetch(MISTRAL_URL, {
     method: 'POST',
@@ -106,7 +109,7 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
   // Self-email → always important
   if (isSelfSent(fromAddr, userOwnEmail)) return 'important';
 
-  if (!MISTRAL_API_KEY) {
+  if (!getMistralKey()) {
     return ruleBasedClassify(subject, snippet, fromAddr, userOwnEmail);
   }
 
@@ -140,7 +143,7 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
 
 // ── Generate reply ────────────────────────────────────────────
 async function generateReply({ subject, snippet, fromName, replyTemplate, customContext }) {
-  if (!MISTRAL_API_KEY) {
+  if (!getMistralKey()) {
     return replyTemplate || `Hi ${fromName || 'there'},\n\nThank you for your email. I'll get back to you shortly.\n\nBest regards`;
   }
 
