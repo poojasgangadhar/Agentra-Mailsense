@@ -2,6 +2,10 @@
 require('dotenv').config();
 const { createClient } = require('@libsql/client');
 
+if (!process.env.TURSO_URL || !process.env.TURSO_TOKEN) {
+  console.error('[db] FATAL: TURSO_URL or TURSO_TOKEN env var is missing. Set them in Vercel Project Settings → Environment Variables (Production).');
+}
+
 const db = createClient({
   url: process.env.TURSO_URL,
   authToken: process.env.TURSO_TOKEN,
@@ -149,6 +153,13 @@ const stmts = {
 
 const initPromise = db.executeMultiple(SCHEMA)
   .then(() => console.log('[db] Turso initialised OK'))
-  .catch(err => { console.error('[db] FATAL:', err.message); process.exit(1); });
+  .catch(err => {
+    console.error('[db] FATAL:', err.message);
+    // Do NOT process.exit() here — this runs inside a serverless function.
+    // Exiting kills the whole Lambda invocation (FUNCTION_INVOCATION_FAILED)
+    // for every route, including ones that don't touch the DB.
+    // Rethrow so server.js's initPromise.catch(next) can return a clean JSON 500.
+    throw err;
+  });
 
 module.exports = { db, stmts, initPromise, recomputeStats, markEmailsDeleted, query, queryOne, exec };
