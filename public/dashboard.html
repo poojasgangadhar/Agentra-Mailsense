@@ -462,7 +462,8 @@ input,textarea,select,button{font-size:14px !important;}
     max-height:88vh !important;
   }
   .modal-actions{flex-direction:column;}
-  .modal-cancel,.modal-confirm{padding:13px !important;font-size:0.84rem !important;}
+  .modal-actions:not(.modal-actions--inline) .modal-cancel,
+  .modal-actions:not(.modal-actions--inline) .modal-confirm{padding:13px !important;font-size:0.84rem !important;}
   .modal-input{font-size:16px !important;} /* prevent iOS zoom */
 
   /* Toast */
