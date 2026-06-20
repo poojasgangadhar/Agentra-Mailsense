@@ -7,6 +7,21 @@ const { requireAuth, verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Persist refreshed OAuth tokens back to DB (passed as callback into gmail helpers)
+function makeSaveToken(userEmail) {
+  return async (updated) => {
+    await stmts.upsertToken.run({
+      user_email:    userEmail,
+      access_token:  updated.access_token,
+      refresh_token: updated.refresh_token || null,
+      token_expiry:  updated.token_expiry  || null,
+      scope:         updated.scope         || '',
+    });
+  };
+}
+
+
+
 const AVATAR_COLORS = ['#4f6ef7','#2dd4bf','#f59e0b','#f87171','#a78bfa','#34d399','#fb7185','#60a5fa'];
 function colorForEmail(email = '') {
   let hash = 0;
@@ -83,7 +98,8 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
   if (!tokenRow) return res.status(400).json({ error: 'Gmail not connected.' });
   try {
     await stmts.insertLog.run(email, 'blue', `Fetching emails from Gmail (${dateRange === 'all' ? 'all time' : dateRange})…`);
-    const messages = await gmailHelper.fetchMessages(tokenRow, parseInt(maxEmails), dateRange);
+    const saveToken = makeSaveToken(email);
+    const messages = await gmailHelper.fetchMessages(tokenRow, parseInt(maxEmails), dateRange, saveToken);
     if (tokenRow.access_token) {
       await stmts.upsertToken.run({
         user_email: email, access_token: tokenRow.access_token,
@@ -119,7 +135,15 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
       const autoArchiveEnabled = archiveSetting ? archiveSetting.setting_value !== 'false' : true;
 
       if (autoArchiveEnabled) {
-        await gmailHelper.archiveMessages(tokenRow, toArchive).catch(() => {});
+        await gmailHelper.archiveMessages(tokenRow, toArchive, saveToken).catch(() => {});
+        // Sync archived flag in local DB so dashboard reflects the correct state
+        if (toArchive.length > 0) {
+          const ph = toArchive.map(() => '?').join(',');
+          await exec(
+            `UPDATE emails SET archived = 1 WHERE user_email = ? AND gmail_id IN (${ph})`,
+            email, ...toArchive
+          );
+        }
         // Persist the archived gmail_ids so the user can undo within the session
         await exec(
           `INSERT INTO user_settings (user_email, setting_key, setting_value)
@@ -180,11 +204,12 @@ router.post('/gmail-reply', requireAuth, async (req, res) => {
     const params = { from: userEmail, to: emailRow.from_addr, subject: emailRow.subject, messageId: emailRow.gmail_id, threadId: emailRow.thread_id, body: replyBody };
     let action, logMsg;
     if (mode === 'fast') {
-      await gmailHelper.sendReply(tokenRow, params);
+      const saveTokenR = makeSaveToken(userEmail);
+      await gmailHelper.sendReply(tokenRow, params, saveTokenR);
       action = 'sent';
       logMsg = `⚡ Auto-reply <strong>sent</strong> to <strong>${emailRow.from_name || emailRow.from_addr}</strong>`;
     } else {
-      await gmailHelper.saveDraft(tokenRow, params);
+      await gmailHelper.saveDraft(tokenRow, params, saveTokenR);
       action = 'draft';
       logMsg = `🛡️ Draft reply <strong>saved</strong> for <strong>${emailRow.from_name || emailRow.from_addr}</strong>`;
     }
@@ -204,6 +229,8 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
   const userEmail = req.user.email;
   if (!emailIds?.length) return res.status(400).json({ error: 'emailIds required.' });
   const tokenRow = await stmts.getToken.get(userEmail);
+  // Single saveToken callback shared across all action branches
+  const saveTokenA = makeSaveToken(userEmail);
   try {
     let count = 0;
     if (action === 'trash') {
@@ -213,7 +240,7 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
           const row = await queryOne('SELECT gmail_id FROM emails WHERE id = ?', id);
           if (row?.gmail_id) gmailIds.push(row.gmail_id);
         }
-        if (gmailIds.length) count = await gmailHelper.trashMessages(tokenRow, gmailIds);
+        if (gmailIds.length) count = await gmailHelper.trashMessages(tokenRow, gmailIds, saveTokenA);
       }
       await markEmailsDeleted(userEmail, emailIds);
       count = count || emailIds.length;
@@ -226,7 +253,7 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
           const row = await queryOne('SELECT gmail_id FROM emails WHERE id = ?', id);
           if (row?.gmail_id) gmailIds.push(row.gmail_id);
         }
-        if (gmailIds.length) await gmailHelper.untrashMessages(tokenRow, gmailIds);
+        if (gmailIds.length) await gmailHelper.untrashMessages(tokenRow, gmailIds, saveTokenA);
       }
       for (const id of emailIds) {
         await exec('UPDATE emails SET deleted = 0 WHERE user_email = ? AND id = ?', userEmail, id);
@@ -241,7 +268,7 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
           const row = await queryOne('SELECT gmail_id FROM emails WHERE id = ?', id);
           if (row?.gmail_id) gmailIds.push(row.gmail_id);
         }
-        if (gmailIds.length) await gmailHelper.permanentlyDeleteMessages(tokenRow, gmailIds);
+        if (gmailIds.length) await gmailHelper.permanentlyDeleteMessages(tokenRow, gmailIds, saveTokenA);
       }
       for (const id of emailIds) {
         await exec('DELETE FROM emails WHERE user_email = ? AND id = ?', userEmail, id);
@@ -256,7 +283,7 @@ router.post('/gmail-action', requireAuth, async (req, res) => {
           const row = await queryOne('SELECT gmail_id FROM emails WHERE id = ?', id);
           if (row?.gmail_id) gmailIds.push(row.gmail_id);
         }
-        if (gmailIds.length) await gmailHelper.archiveMessages(tokenRow, gmailIds);
+        if (gmailIds.length) await gmailHelper.archiveMessages(tokenRow, gmailIds, saveTokenA);
       }
       for (const id of emailIds) {
         await exec('UPDATE emails SET archived = 1 WHERE user_email = ? AND id = ?', userEmail, id);
@@ -288,7 +315,8 @@ router.post('/undo-auto-archive', requireAuth, async (req, res) => {
     const gmailIds = JSON.parse(row.setting_value);
     if (!gmailIds.length) return res.status(404).json({ error: 'Nothing to restore.' });
 
-    await gmailHelper.unarchiveMessages(tokenRow, gmailIds);
+    const saveTokenU = makeSaveToken(email);
+    await gmailHelper.unarchiveMessages(tokenRow, gmailIds, saveTokenU);
 
     // Mark emails as unarchived in local DB
     for (const gmailId of gmailIds) {

@@ -15,7 +15,7 @@ const path    = require('path');
 const authRoutes    = require('./routes/auth');
 const gmailRoutes   = require('./routes/gmail');
 const webauthnRoutes = require('./routes/webauthn');
-const { startScheduler } = require('./scheduler');
+const { startScheduler, runScheduler } = require('./scheduler');
 
 const app  = express();
 const { initPromise } = require('./db');
@@ -43,6 +43,24 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api', authRoutes);
 app.use('/api', gmailRoutes);
 app.use('/api/webauthn', webauthnRoutes);
+
+// ── Vercel Cron: auto-delete scheduler ───────────────────────
+// Configure in vercel.json: { "crons": [{ "path": "/api/run-scheduler", "schedule": "0 * * * *" }] }
+// Vercel sends a request from 64.23.160.0/20 — no auth header needed in practice,
+// but we guard with a shared secret for safety.
+app.post('/api/run-scheduler', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers['x-cron-secret'] !== secret) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  try {
+    await runScheduler();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Cron] run-scheduler error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

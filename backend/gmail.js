@@ -42,7 +42,11 @@ async function exchangeCode(code) {
 }
 
 // ── Build an authorized client from stored token row ─────────
-function buildAuthorizedClient(tokenRow) {
+// saveToken(updatedFields) is an optional async callback that persists
+// refreshed credentials back to the DB. Without it, a refreshed
+// access_token only lives in memory and the next request re-uses
+// the expired token, causing Gmail API 401s.
+function buildAuthorizedClient(tokenRow, saveToken) {
   const oAuth2Client = createOAuth2Client();
   oAuth2Client.setCredentials({
     access_token:  tokenRow.access_token,
@@ -50,11 +54,19 @@ function buildAuthorizedClient(tokenRow) {
     expiry_date:   tokenRow.token_expiry ? parseInt(tokenRow.token_expiry) : undefined,
   });
 
-  // Auto-save refreshed tokens
+  // Auto-save refreshed tokens to DB so they survive across requests
   oAuth2Client.on('tokens', (newTokens) => {
     tokenRow.access_token = newTokens.access_token;
     if (newTokens.refresh_token) tokenRow.refresh_token = newTokens.refresh_token;
     if (newTokens.expiry_date)   tokenRow.token_expiry  = newTokens.expiry_date.toString();
+    if (saveToken) {
+      saveToken({
+        access_token:  tokenRow.access_token,
+        refresh_token: tokenRow.refresh_token,
+        token_expiry:  tokenRow.token_expiry,
+        scope:         tokenRow.scope,
+      }).catch(err => console.error('[Gmail] Failed to persist refreshed token:', err.message));
+    }
   });
 
   return oAuth2Client;
@@ -82,8 +94,8 @@ function extractBody(payload) {
 }
 
 // ── Fetch messages from inbox ─────────────────────────────────
-async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all') {
-  const auth   = buildAuthorizedClient(tokenRow);
+async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', saveToken) {
+  const auth   = buildAuthorizedClient(tokenRow, saveToken);
   const gmail  = google.gmail({ version: 'v1', auth });
 
   // Build Gmail search query based on date range
@@ -193,8 +205,8 @@ function buildRawEmail({ from, to, subject, replyToMessageId, replyToThreadId, b
 }
 
 // ── Send a reply immediately (Fast Mode) ─────────────────────
-async function sendReply(tokenRow, { from, to, subject, messageId, threadId, body }) {
-  const auth  = buildAuthorizedClient(tokenRow);
+async function sendReply(tokenRow, { from, to, subject, messageId, threadId, body }, saveToken) {
+  const auth  = buildAuthorizedClient(tokenRow, saveToken);
   const gmail = google.gmail({ version: 'v1', auth });
 
   const raw = buildRawEmail({
@@ -215,8 +227,8 @@ async function sendReply(tokenRow, { from, to, subject, messageId, threadId, bod
 }
 
 // ── Save a draft (Safe Mode) ──────────────────────────────────
-async function saveDraft(tokenRow, { from, to, subject, messageId, threadId, body }) {
-  const auth  = buildAuthorizedClient(tokenRow);
+async function saveDraft(tokenRow, { from, to, subject, messageId, threadId, body }, saveToken) {
+  const auth  = buildAuthorizedClient(tokenRow, saveToken);
   const gmail = google.gmail({ version: 'v1', auth });
 
   const raw = buildRawEmail({
@@ -236,8 +248,8 @@ async function saveDraft(tokenRow, { from, to, subject, messageId, threadId, bod
 }
 
 // ── Move messages to Trash ────────────────────────────────────
-async function trashMessages(tokenRow, gmailIds) {
-  const auth  = buildAuthorizedClient(tokenRow);
+async function trashMessages(tokenRow, gmailIds, saveToken) {
+  const auth  = buildAuthorizedClient(tokenRow, saveToken);
   const gmail = google.gmail({ version: 'v1', auth });
 
   const results = await Promise.allSettled(
@@ -247,8 +259,8 @@ async function trashMessages(tokenRow, gmailIds) {
 }
 
 // ── Archive messages (remove INBOX label) ────────────────────
-async function archiveMessages(tokenRow, gmailIds) {
-  const auth  = buildAuthorizedClient(tokenRow);
+async function archiveMessages(tokenRow, gmailIds, saveToken) {
+  const auth  = buildAuthorizedClient(tokenRow, saveToken);
   const gmail = google.gmail({ version: 'v1', auth });
 
   const results = await Promise.allSettled(
@@ -264,8 +276,8 @@ async function archiveMessages(tokenRow, gmailIds) {
 }
 
 // ── Untrash (restore from Bin to INBOX) ──────────────────────
-async function untrashMessages(tokenRow, gmailIds) {
-  const auth  = buildAuthorizedClient(tokenRow);
+async function untrashMessages(tokenRow, gmailIds, saveToken) {
+  const auth  = buildAuthorizedClient(tokenRow, saveToken);
   const gmail = google.gmail({ version: 'v1', auth });
 
   const results = await Promise.allSettled(
@@ -275,8 +287,8 @@ async function untrashMessages(tokenRow, gmailIds) {
 }
 
 // ── Permanently delete (irreversible) ────────────────────────
-async function permanentlyDeleteMessages(tokenRow, gmailIds) {
-  const auth  = buildAuthorizedClient(tokenRow);
+async function permanentlyDeleteMessages(tokenRow, gmailIds, saveToken) {
+  const auth  = buildAuthorizedClient(tokenRow, saveToken);
   const gmail = google.gmail({ version: 'v1', auth });
 
   const results = await Promise.allSettled(
@@ -286,8 +298,8 @@ async function permanentlyDeleteMessages(tokenRow, gmailIds) {
 }
 
 // ── Unarchive (restore to INBOX) ─────────────────────────────
-async function unarchiveMessages(tokenRow, gmailIds) {
-  const auth  = buildAuthorizedClient(tokenRow);
+async function unarchiveMessages(tokenRow, gmailIds, saveToken) {
+  const auth  = buildAuthorizedClient(tokenRow, saveToken);
   const gmail = google.gmail({ version: 'v1', auth });
 
   const results = await Promise.allSettled(

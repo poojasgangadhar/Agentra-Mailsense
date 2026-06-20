@@ -17,6 +17,18 @@ if (!process.env.JWT_SECRET) {
 const { signToken, requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
+
+// Temporary in-memory store for one-time Google OAuth session codes.
+// Each code is valid for 60 seconds and is deleted on first use.
+// This keeps the real JWT out of the redirect URL (browser history / referer leaks).
+const pendingSessionCodes = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of pendingSessionCodes) {
+    if (v.expires < now) pendingSessionCodes.delete(k);
+  }
+}, 30_000);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -67,7 +79,13 @@ router.get('/google-callback', async (req, res) => {
       user = await stmts.getUserByEmail.get(email);
     }
     const token = signToken(user);
-    res.redirect(`${APP_URL}/?google_token=${encodeURIComponent(token)}&google_email=${encodeURIComponent(email)}&google_name=${encodeURIComponent(user.first_name)}`);
+    // Use a short-lived one-time code instead of the full JWT in the URL.
+    // The frontend exchanges this code for the real JWT via POST /api/claim-session,
+    // keeping the long-lived token out of browser history and server logs.
+    const sessionCode = crypto.randomBytes(24).toString('hex');
+    const expires = Date.now() + 60_000; // 60 seconds
+    pendingSessionCodes.set(sessionCode, { token, expires });
+    res.redirect(`${APP_URL}/?session_code=${encodeURIComponent(sessionCode)}&google_email=${encodeURIComponent(email)}&google_name=${encodeURIComponent(user.first_name)}`);
   } catch (err) {
     console.error('[Google OAuth callback]', err);
     res.redirect(`${APP_URL}/?google_error=auth_failed`);
@@ -79,6 +97,8 @@ router.post('/signup-send-otp', authLimiter, async (req, res) => {
     const { first_name, last_name, email, password } = req.body;
     if (!first_name || !last_name || !email || !password)
       return res.status(400).json({ error: 'All fields are required.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return res.status(400).json({ error: 'Invalid email address.' });
     if (password.length < 8)
       return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     const existing = await stmts.getUserByEmail.get(email);
@@ -105,15 +125,24 @@ router.post('/signup-verify-otp', authLimiter, async (req, res) => {
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required.' });
   const record = await stmts.getValidOTP.get(email, 'signup');
   if (!record) return res.status(400).json({ error: 'Code expired or not found. Request a new one.' });
-  if (record.code !== otp) return res.status(400).json({ error: 'Incorrect verification code.' });
-  await stmts.markOTPUsed.run(record.id);
-  await stmts.verifyUser.run(email);
-  res.json({ success: true, message: 'Account verified successfully.' });
+  const otpMatch = record.code.length === otp.length &&
+    crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(otp));
+  if (!otpMatch) return res.status(400).json({ error: 'Incorrect verification code.' });
+  try {
+    await stmts.markOTPUsed.run(record.id);
+    await stmts.verifyUser.run(email);
+    res.json({ success: true, message: 'Account verified successfully.' });
+  } catch (err) {
+    console.error('[signup-verify-otp]', err);
+    res.status(500).json({ error: 'Failed to verify account.' });
+  }
 });
 
 router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return res.status(400).json({ error: 'Invalid email address.' });
   const user = await stmts.getUserByEmail.get(email);
   if (!user) return res.status(401).json({ error: 'No account found with this email.' });
   if (!user.is_verified) return res.status(401).json({ error: 'Please verify your email before logging in.' });
@@ -148,7 +177,9 @@ router.post('/forgot-verify-otp', authLimiter, async (req, res) => {
   if (!email || !otp) return res.status(400).json({ error: 'Email and code required.' });
   const record = await stmts.getValidOTP.get(email, 'forgot');
   if (!record) return res.status(400).json({ error: 'Code expired or not found. Request a new one.' });
-  if (record.code !== otp) return res.status(400).json({ error: 'Incorrect verification code.' });
+  const forgotOtpMatch = record.code.length === otp.length &&
+    crypto.timingSafeEqual(Buffer.from(record.code), Buffer.from(otp));
+  if (!forgotOtpMatch) return res.status(400).json({ error: 'Incorrect verification code.' });
   await stmts.markOTPUsed.run(record.id);
   // Issue a short-lived signed token proving this OTP was verified.
   // The reset endpoint requires this token — it cannot be bypassed.
@@ -160,7 +191,7 @@ router.post('/forgot-verify-otp', authLimiter, async (req, res) => {
   res.json({ success: true, message: 'Code verified.', resetToken });
 });
 
-router.post('/forgot-reset-password', async (req, res) => {
+router.post('/forgot-reset-password', authLimiter, async (req, res) => {
   const { resetToken, password } = req.body;
   if (!resetToken || !password) return res.status(400).json({ error: 'Reset token and new password required.' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
@@ -177,16 +208,23 @@ router.post('/forgot-reset-password', async (req, res) => {
   }
 
   const email = payload.email;
-  const user = await stmts.getUserByEmail.get(email);
-  if (!user) return res.status(404).json({ error: 'Account not found.' });
-  const hash = await bcrypt.hash(password, 12);
-  await stmts.updatePassword.run(hash, email);
-  res.json({ success: true, message: 'Password updated successfully.' });
+  try {
+    const user = await stmts.getUserByEmail.get(email);
+    if (!user) return res.status(404).json({ error: 'Account not found.' });
+    const hash = await bcrypt.hash(password, 12);
+    await stmts.updatePassword.run(hash, email);
+    res.json({ success: true, message: 'Password updated successfully.' });
+  } catch (err) {
+    console.error('[forgot-reset-password]', err);
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
 });
 
-router.post('/verify-credentials', async (req, res) => {
+router.post('/verify-credentials', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return res.status(400).json({ error: 'Invalid email address.' });
   const user = await stmts.getUserByEmail.get(email);
   if (!user) return res.status(401).json({ error: 'No account found with this email.' });
   const valid = await bcrypt.compare(password, user.password);
@@ -207,6 +245,7 @@ router.post('/delete-account', requireAuth, async (req, res) => {
   await exec('DELETE FROM agent_logs WHERE user_email = ?', email);
   await exec('DELETE FROM agent_stats WHERE user_email = ?', email);
   await exec('DELETE FROM otp_codes WHERE email = ?', email);
+  await exec('DELETE FROM user_settings WHERE user_email = ?', email);
   await stmts.deleteUser.run(email);
   res.json({ success: true, message: 'Account deleted.' });
 });
@@ -238,13 +277,26 @@ router.post('/change-password', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Account not found.' });
     const valid = await bcrypt.compare(currentPassword, user.password);
     if (!valid) return res.status(401).json({ error: 'Current password is incorrect.' });
-    const hashed = await bcrypt.hash(newPassword, 10);
+    const hashed = await bcrypt.hash(newPassword, 12);
     await exec('UPDATE users SET password = ? WHERE email = ?', hashed, email);
     res.json({ success: true });
   } catch (err) {
     console.error('[change-password]', err);
     res.status(500).json({ error: 'Failed to change password.' });
   }
+});
+
+// Exchange a one-time Google OAuth session code for a real JWT.
+// The code is valid for 60 seconds and destroyed on first use.
+router.post('/claim-session', authLimiter, (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Session code required.' });
+  const entry = pendingSessionCodes.get(code);
+  if (!entry || entry.expires < Date.now()) {
+    return res.status(401).json({ error: 'Session code expired or invalid.' });
+  }
+  pendingSessionCodes.delete(code); // one-time use
+  res.json({ success: true, token: entry.token });
 });
 
 module.exports = router;

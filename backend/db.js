@@ -134,14 +134,11 @@ async function markEmailsDeleted(userEmail, emailIds) {
 
   const ph = emailIds.map(() => '?').join(',');
 
-  console.log('Deleting IDs:', emailIds, 'User:', userEmail);
-
   const result = await db.execute({
     sql: `UPDATE emails SET deleted = 1 WHERE user_email = ? AND id IN (${ph})`,
     args: [userEmail, ...emailIds]
   });
 
-  console.log('UPDATE RESULT:', result);
 }
 
 const stmts = {
@@ -156,7 +153,7 @@ const stmts = {
   getToken:         prepare('SELECT * FROM gmail_tokens WHERE user_email = ?'),
   upsertToken:      prepare('INSERT INTO gmail_tokens (user_email, access_token, refresh_token, token_expiry, scope) VALUES ($user_email, $access_token, $refresh_token, $token_expiry, $scope) ON CONFLICT(user_email) DO UPDATE SET access_token = excluded.access_token, refresh_token = COALESCE(excluded.refresh_token, gmail_tokens.refresh_token), token_expiry = excluded.token_expiry, scope = excluded.scope'),
   deleteToken:      prepare('DELETE FROM gmail_tokens WHERE user_email = ?'),
-  upsertEmail:      prepare('INSERT INTO emails (id, user_email, gmail_id, thread_id, from_addr, from_name, subject, snippet, body, tag, color, email_time) VALUES ($id, $user_email, $gmail_id, $thread_id, $from_addr, $from_name, $subject, $snippet, $body, $tag, $color, $email_time) ON CONFLICT(id) DO UPDATE SET tag = excluded.tag, snippet = excluded.snippet, body = excluded.body'),
+  upsertEmail:      prepare('INSERT INTO emails (id, user_email, gmail_id, thread_id, from_addr, from_name, subject, snippet, body, tag, color, email_time) VALUES ($id, $user_email, $gmail_id, $thread_id, $from_addr, $from_name, $subject, $snippet, $body, $tag, $color, $email_time) ON CONFLICT(id) DO UPDATE SET tag = COALESCE(emails.tag, excluded.tag), snippet = excluded.snippet, body = excluded.body'),
   getEmails:        prepare('SELECT * FROM emails WHERE user_email = ? AND deleted = 0 ORDER BY fetched_at DESC LIMIT 100'),
   markEmailReplied: prepare('UPDATE emails SET replied = 1 WHERE id = ?'),
   insertLog:        prepare('INSERT INTO agent_logs (user_email, dot_color, message) VALUES (?, ?, ?)'),

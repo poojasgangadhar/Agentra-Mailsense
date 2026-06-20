@@ -103,29 +103,19 @@ async function runScheduler() {
   console.log(`[Scheduler] Done. Processed ${users.length} user(s).`);
 }
 
-async function ensureSettingsTable() {
-  await exec(`CREATE TABLE IF NOT EXISTS user_settings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_email TEXT NOT NULL, setting_key TEXT NOT NULL,
-    setting_value TEXT NOT NULL,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(user_email, setting_key)
-  )`);
-}
-
 function startScheduler() {
-  // On Vercel (serverless) scheduler doesn't run — skip silently
-  if (process.env.NODE_ENV === 'production') {
-    console.log('[Scheduler] Skipped — serverless environment.');
+  // On Vercel (serverless) this interval won't persist across invocations.
+  // Use the /api/run-scheduler cron endpoint instead (see vercel.json crons).
+  // This function is still useful for local development.
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SCHEDULER !== 'true') {
+    console.log('[Scheduler] Skipped in production — use Vercel Cron (/api/run-scheduler) instead.');
     return;
   }
 
-  ensureSettingsTable().then(() => {
-    setTimeout(async () => { await runScheduler(); }, 10_000);
-    const interval = setInterval(async () => { await runScheduler(); }, CHECK_INTERVAL_MS);
-    interval.unref();
-    console.log(`[Scheduler] Started. Runs every ${CHECK_INTERVAL_MS / 60000} minute(s).`);
-  }).catch(err => console.error('[Scheduler] Failed to init:', err.message));
+  setTimeout(async () => { await runScheduler(); }, 10_000);
+  const interval = setInterval(async () => { await runScheduler(); }, CHECK_INTERVAL_MS);
+  interval.unref();
+  console.log(`[Scheduler] Started. Runs every ${CHECK_INTERVAL_MS / 60000} minute(s).`);
 }
 
-module.exports = { startScheduler, runScheduler, ensureSettingsTable };
+module.exports = { startScheduler, runScheduler };
