@@ -1,0 +1,8 @@
+{
+  "appId": "com.agentra.mailsense",
+  "appName": "MailSense",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https"
+  }
+}
