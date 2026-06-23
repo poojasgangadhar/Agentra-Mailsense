@@ -38,7 +38,7 @@ jobs:
         run: ./gradlew bundleDebug
 
       - name: Upload AAB
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mailsense-debug.aab
           path: android/app/build/outputs/bundle/debug/app-debug.aab
