@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MailSense</string>
+    <string name="title_activity_main">MailSense</string>
+    <string name="package_name">com.agentra.mailsense</string>
+    <string name="custom_url_scheme">com.agentra.mailsense</string>
+</resources>
