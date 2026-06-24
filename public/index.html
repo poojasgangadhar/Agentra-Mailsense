@@ -377,6 +377,7 @@ body{
 </div>
 
 <script>
+const BASE_URL = (window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost') ? 'https://mailsense-fixed.vercel.app' : '';
 // ── Email typo validator ─────────────────────────────────────
 function validateEmailInput(input, hintId) {
   const val = input.value.trim();
@@ -417,7 +418,7 @@ function validateEmailInput(input, hintId) {
 function doGoogleLogin(){
   const btn = document.querySelector('.btn-social');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Redirecting to Google…'; }
-  window.location.href = '/api/google-login';
+  window.location.href = BASE_URL+'/api/google-login';
 }
 
 // ── Theme ─────────────────────────────────────────────────────
@@ -548,7 +549,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       const email=emailInput.value.trim();
       if(!email)return;
       try{
-        const r=await fetch('/api/webauthn/auth/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+        const r=await fetch(BASE_URL+'/api/webauthn/auth/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
         if(r.ok){document.getElementById('btn-biometric').style.display='';}
       }catch{}
     });
@@ -561,7 +562,7 @@ async function doBiometricLogin(){
   const btn=document.getElementById('btn-biometric');
   btn.disabled=true;btn.textContent='Verifying…';
   try{
-    const optRes=await fetch('/api/webauthn/auth/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const optRes=await fetch(BASE_URL+'/api/webauthn/auth/options',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
     const opts=await optRes.json();
     if(!optRes.ok)return showMsg('login-msg','error',opts.error||'No passkey found for this account.');
     opts.challenge=b64urlToBuf(opts.challenge);
@@ -576,7 +577,7 @@ async function doBiometricLogin(){
         userHandle:cred.response.userHandle?bufToB64url(cred.response.userHandle):null,
       }
     };
-    const verRes=await fetch('/api/webauthn/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,credential:credJSON})});
+    const verRes=await fetch(BASE_URL+'/api/webauthn/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,credential:credJSON})});
     const vd=await verRes.json();
     if(vd.success){
       sessionStorage.setItem('ms_token',vd.token);
@@ -597,7 +598,7 @@ async function doLogin(){
   if(!validateEmail(email))return showMsg('login-msg','error','Please enter a valid email address.');
   setLoading('btn-login',true,'Sign in →');
   try{
-    const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
+    const res=await fetch(BASE_URL+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Login failed.');
     // Store session
@@ -623,7 +624,7 @@ async function doSignupSendOTP(){
   if(pw!==cpw) return showMsg('signup-msg','error','Passwords do not match.');
   setLoading('btn-signup',true,'Continue →');
   try{
-    const res=await fetch('/api/signup-send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:first,last_name:last,email,password:pw})});
+    const res=await fetch(BASE_URL+'/api/signup-send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:first,last_name:last,email,password:pw})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Failed to send code.');
     document.getElementById('su-email-show').textContent=email;
@@ -645,7 +646,7 @@ async function doSignupVerifyOTP(){
   if(code.length<6) return showMsg('signup-otp-msg','error','Please enter all 6 digits.');
   setLoading('btn-su-verify',true,'Verify & Create account →');
   try{
-    const res=await fetch('/api/signup-verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,otp:code})});
+    const res=await fetch(BASE_URL+'/api/signup-verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,otp:code})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Invalid code.');
     document.getElementById('su-step2').classList.remove('active');
@@ -659,7 +660,7 @@ async function resendSignupOTP(){
   const first=document.getElementById('su-first').value.trim(), last=document.getElementById('su-last').value.trim();
   const email=document.getElementById('su-email').value.trim(), pw=document.getElementById('su-pw').value;
   try{
-    const res=await fetch('/api/signup-send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:first,last_name:last,email,password:pw})});
+    const res=await fetch(BASE_URL+'/api/signup-send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:first,last_name:last,email,password:pw})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error);
     clearOTP('sotp'); showMsg('signup-otp-msg','success','✓ New code sent!');
@@ -677,7 +678,7 @@ async function sendForgotOTP(isResend=false){
   if(!validateEmail(email)) return showMsg('fp-msg','error','Please enter a valid email address.');
   if(!isResend) setLoading('btn-fp-send',true,'Send verification code →');
   try{
-    const res=await fetch('/api/forgot-send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const res=await fetch(BASE_URL+'/api/forgot-send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Failed to send code.');
     document.getElementById('fp-email-show').textContent=email;
@@ -693,7 +694,7 @@ async function verifyForgotOTP(){
   if(code.length<6) return showMsg('fp-otp-msg','error','Please enter all 6 digits.');
   setLoading('btn-fp-verify',true,'Verify code →');
   try{
-    const res=await fetch('/api/forgot-verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,otp:code})});
+    const res=await fetch(BASE_URL+'/api/forgot-verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,otp:code})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Verification failed.');
     fpGoTo(3); setTimeout(()=>document.getElementById('fp-new-pw')?.focus(),300);
@@ -708,7 +709,7 @@ async function setNewPassword(){
   if(pw!==cpw) return showMsg('fp-pw-msg','error','Passwords do not match.');
   setLoading('btn-fp-save',true,'Save new password →');
   try{
-    const res=await fetch('/api/forgot-reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
+    const res=await fetch(BASE_URL+'/api/forgot-reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pw})});
     const data=await res.json();
     if(!res.ok) throw new Error(data.error||'Failed to update password.');
     fpGoTo(4);
