@@ -1019,6 +1019,12 @@ function App(){
       const result = await response.json();
       if (!result.success) throw new Error(result.error || 'Failed to move emails to Bin');
       setEmails(prev => prev.map(email => ids.includes(email.id) ? { ...email, deleted: true } : email));
+      setStats(prev => {
+        const moved = emails.filter(e => ids.includes(e.id));
+        const delta = { promo: 0, spam: 0, important: 0, total: 0 };
+        moved.forEach(e => { if(e.tag==='promo') delta.promo--; else if(e.tag==='spam') delta.spam--; else if(e.tag==='important') delta.important--; delta.total--; });
+        return { ...prev, promo: Math.max(0, prev.promo+delta.promo), spam: Math.max(0, prev.spam+delta.spam), important: Math.max(0, prev.important+delta.important), total: Math.max(0, prev.total+delta.total) };
+      });
       setSelected([]);
       t(`${n} email${n > 1 ? 's' : ''} moved to Bin successfully`, 'green');
     } catch (err) {

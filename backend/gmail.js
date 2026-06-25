@@ -137,7 +137,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   if (messageIds.length === 0) return [];
 
   // Fetch each message in parallel (batched to avoid rate limits)
-  const BATCH = 5;
+  const BATCH = 10;
   const messages = [];
 
   for (let i = 0; i < messageIds.length; i += BATCH) {
