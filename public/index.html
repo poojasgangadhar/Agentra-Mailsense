@@ -418,7 +418,9 @@ function validateEmailInput(input, hintId) {
 function doGoogleLogin(){
   const btn = document.querySelector('.btn-social');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Redirecting to Google…'; }
-  window.location.href = BASE_URL+'/api/google-login';
+  // Pass state=mobile so backend redirects back to mailsense:// deep link
+  const isMobile = window.location.protocol === 'capacitor:';
+  window.location.href = BASE_URL+'/api/google-login' + (isMobile ? '?state=mobile' : '');
 }
 
 // ── Theme ─────────────────────────────────────────────────────
@@ -501,33 +503,47 @@ window.addEventListener('load',()=>{
   setupOTPBoxes('sotp',6);
   setupOTPBoxes('fotp',6);
 
-  // ── Handle Google OAuth callback token ──────────────────────
-  const params = new URLSearchParams(window.location.search);
-  const gToken = params.get('google_token');
-  const gEmail = params.get('google_email');
-  const gName  = params.get('google_name');
-  const gError = params.get('google_error');
+  // ── Handle deep link when app opens from mailsense:// ──────
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    window.Capacitor.Plugins.App.addListener('appUrlOpen', function(data) {
+      if (data && data.url && data.url.startsWith('mailsense://callback')) {
+        const urlParams = new URLSearchParams(data.url.split('?')[1] || '');
+        handleOAuthParams(urlParams);
+      }
+    });
+  }
 
-  if (gToken && gEmail) {
-    sessionStorage.setItem('is_logged_in','true');
-    sessionStorage.setItem('user_email', gEmail);
-    sessionStorage.setItem('user_name',  gName || 'User');
-    sessionStorage.setItem('jwt_token',  gToken);
-    window.history.replaceState({}, '', '/');
-    makeOverlay(`Welcome, ${gName || 'User'}! 👋`, 'Opening your dashboard…');
-    setTimeout(() => { window.location.href = '/dashboard.html'; }, 1400);
-  } else if (gError) {
-    window.history.replaceState({}, '', '/');
-    const msgEl = document.getElementById('login-msg');
-    if (msgEl) {
-      const msgs = {
-        access_denied: 'Google sign-in was cancelled.',
-        no_email: 'Google did not return an email address.',
-        auth_failed: 'Google sign-in failed. Please try again.',
-      };
-      showMsg('login-msg', 'error', msgs[gError] || 'Google sign-in failed. Please try again.');
+  // ── Handle Google OAuth callback token ──────────────────────
+  function handleOAuthParams(params) {
+    const gToken = params.get('google_token');
+    const gEmail = params.get('google_email');
+    const gName  = params.get('google_name');
+    const gError = params.get('google_error');
+    const sessionCode = params.get('session_code');
+
+    if ((gToken || sessionCode) && gEmail) {
+      sessionStorage.setItem('is_logged_in','true');
+      sessionStorage.setItem('user_email', gEmail);
+      sessionStorage.setItem('user_name',  gName || 'User');
+      if (gToken) sessionStorage.setItem('jwt_token', gToken);
+      if (sessionCode) sessionStorage.setItem('session_code', sessionCode);
+      window.history.replaceState({}, '', '/');
+      makeOverlay(`Welcome, ${gName || 'User'}! 👋`, 'Opening your dashboard…');
+      setTimeout(() => { window.location.href = '/dashboard.html'; }, 1400);
+    } else if (gError) {
+      window.history.replaceState({}, '', '/');
+      const msgEl = document.getElementById('login-msg');
+      if (msgEl) {
+        const msgs = {
+          access_denied: 'Google sign-in was cancelled.',
+          no_email: 'Google did not return an email address.',
+          auth_failed: 'Google sign-in failed. Please try again.',
+        };
+        showMsg('login-msg', 'error', msgs[gError] || 'Google sign-in failed. Please try again.');
+      }
     }
   }
+  handleOAuthParams(new URLSearchParams(window.location.search));
 });
 
 // ── Redirect overlay ──────────────────────────────────────────

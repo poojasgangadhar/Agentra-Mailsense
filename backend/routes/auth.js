@@ -46,19 +46,28 @@ function getGoogleOAuth2Client() {
 
 router.get('/google-login', (req, res) => {
   const oAuth2Client = getGoogleOAuth2Client();
+  const { state } = req.query;
   const url = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: ['openid', 'email', 'profile'],
     prompt: 'select_account',
+    ...(state ? { state } : {}),
   });
   res.redirect(url);
 });
 
 router.get('/google-callback', async (req, res) => {
   const APP_URL = process.env.APP_URL || 'http://localhost:3000';
-  const { code, error } = req.query;
-  if (error) return res.redirect(`${APP_URL}/?google_error=${encodeURIComponent(error)}`);
-  if (!code) return res.redirect(`${APP_URL}/?google_error=missing_code`);
+  const { code, error, state } = req.query;
+  // Detect if request came from mobile app
+  const isMobile = state === 'mobile';
+  const REDIRECT_BASE = isMobile ? 'mailsense://callback' : APP_URL;
+  const makeRedirect = (params) => {
+    if (isMobile) return `mailsense://callback?${params}`;
+    return `${APP_URL}/?${params}`;
+  };
+  if (error) return res.redirect(makeRedirect(`google_error=${encodeURIComponent(error)}`));
+  if (!code) return res.redirect(makeRedirect(`google_error=missing_code`));
   try {
     const oAuth2Client = getGoogleOAuth2Client();
     const { tokens } = await oAuth2Client.getToken(code);
@@ -85,10 +94,10 @@ router.get('/google-callback', async (req, res) => {
     const sessionCode = crypto.randomBytes(24).toString('hex');
     const expires = Date.now() + 60_000; // 60 seconds
     pendingSessionCodes.set(sessionCode, { token, expires });
-    res.redirect(`${APP_URL}/?session_code=${encodeURIComponent(sessionCode)}&google_email=${encodeURIComponent(email)}&google_name=${encodeURIComponent(user.first_name)}`);
+    res.redirect(makeRedirect(`session_code=${encodeURIComponent(sessionCode)}&google_email=${encodeURIComponent(email)}&google_name=${encodeURIComponent(user.first_name)}`));
   } catch (err) {
     console.error('[Google OAuth callback]', err);
-    res.redirect(`${APP_URL}/?google_error=auth_failed`);
+    res.redirect(makeRedirect(`google_error=auth_failed`));
   }
 });
 
