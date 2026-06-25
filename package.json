@@ -2,7 +2,6 @@
   "name": "mailsense-fixed",
   "version": "1.0.0",
   "description": "MailSense - AI-powered Gmail management",
-  "main": "main.js",
   "scripts": {
     "start": "node backend/server.js",
     "electron": "electron .",

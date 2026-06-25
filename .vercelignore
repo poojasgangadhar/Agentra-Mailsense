@@ -1,0 +1,6 @@
+android/
+dist-electron/
+node_modules/
+main.js
+*.aab
+*.apk
