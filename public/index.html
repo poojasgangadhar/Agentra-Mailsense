@@ -525,11 +525,28 @@ window.addEventListener('load',()=>{
       sessionStorage.setItem('is_logged_in','true');
       sessionStorage.setItem('user_email', gEmail);
       sessionStorage.setItem('user_name',  gName || 'User');
-      if (gToken) sessionStorage.setItem('jwt_token', gToken);
-      if (sessionCode) sessionStorage.setItem('session_code', sessionCode);
       window.history.replaceState({}, '', '/');
       makeOverlay(`Welcome, ${gName || 'User'}! 👋`, 'Opening your dashboard…');
-      setTimeout(() => { window.location.href = '/dashboard.html'; }, 1400);
+      if (gToken) {
+        sessionStorage.setItem('jwt_token', gToken);
+        setTimeout(() => { window.location.href = '/dashboard.html'; }, 1400);
+      } else if (sessionCode) {
+        // Exchange session code for real JWT
+        fetch(BASE_URL + '/api/claim-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: sessionCode })
+        }).then(r => r.json()).then(d => {
+          if (d.token) {
+            sessionStorage.setItem('jwt_token', d.token);
+            setTimeout(() => { window.location.href = '/dashboard.html'; }, 1400);
+          } else {
+            showMsg('login-msg', 'error', 'Google sign-in failed. Please try again.');
+          }
+        }).catch(() => {
+          showMsg('login-msg', 'error', 'Google sign-in failed. Please try again.');
+        });
+      }
     } else if (gError) {
       window.history.replaceState({}, '', '/');
       const msgEl = document.getElementById('login-msg');
