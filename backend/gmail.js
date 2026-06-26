@@ -123,17 +123,26 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   }
   // 'all' = no date filter
 
-  // Cap maxResults per Gmail API limit
+  // Cap maxResults
   const cap = Math.min(parseInt(maxResults) || 100, 500);
 
-  // List message IDs from INBOX
-  const listRes = await gmail.users.messages.list({
-    userId:   'me',
-    maxResults: cap,
-    q,
-  });
+  // List message IDs with pagination to get newest emails first
+  let messageIds = [];
+  let pageToken = undefined;
+  while (messageIds.length < cap) {
+    const remaining = cap - messageIds.length;
+    const listRes = await gmail.users.messages.list({
+      userId: 'me',
+      maxResults: Math.min(remaining, 100),
+      q,
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const ids = (listRes.data.messages || []).map(m => m.id);
+    messageIds.push(...ids);
+    if (!listRes.data.nextPageToken || ids.length === 0) break;
+    pageToken = listRes.data.nextPageToken;
+  }
 
-  const messageIds = (listRes.data.messages || []).map(m => m.id);
   if (messageIds.length === 0) return [];
 
   // Fetch each message in parallel (batched to avoid rate limits)
