@@ -161,6 +161,9 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
     messages.push(...fetched.filter(Boolean));
   }
 
+  // Sort by internalDate descending (newest first)
+  messages.sort((a, b) => parseInt(b.internalDate || 0) - parseInt(a.internalDate || 0));
+
   return messages.map(msg => {
     const headers = {};
     for (const h of (msg.payload?.headers || [])) {
