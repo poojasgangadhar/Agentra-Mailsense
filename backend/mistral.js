@@ -35,6 +35,11 @@ const NO_REPLY_PATTERNS = [
   'mailer@', 'mailer-daemon', 'postmaster@', 'bounce@',
   'automated@', 'system@', 'robot@', 'daemon@',
   'accounts-noreply@', 'mail-noreply@',
+  // Job/social platforms
+  'naukri', 'linkedin', 'github', 'instagram', 'facebook', 'twitter',
+  'youtube', 'google', 'amazon', 'flipkart', 'swiggy', 'zomato',
+  'paytm', 'phonepe', 'razorpay', 'stripe', 'paypal',
+  'info@', 'support@', 'hello@', 'team@', 'contact@',
 ];
 
 const NO_REPLY_SUBJECTS = [
@@ -43,6 +48,13 @@ const NO_REPLY_SUBJECTS = [
   'login attempt', 'new sign-in', 'security alert',
   'do not reply', 'do not respond', 'automated message',
   'automatic reply', 'this is an automated',
+  // Job/social notifications
+  'applied to', 'job alert', 'new job', 'recruiter', 'viewed your profile',
+  'connection request', 'new follower', 'liked your', 'commented on',
+  'new notification', 'activity on', 'digest', 'weekly update',
+  'your order', 'order confirmed', 'order shipped', 'delivery',
+  'payment received', 'payment confirmed', 'transaction',
+  'invoice', 'receipt', 'statement',
 ];
 
 function isNoReplyEmail(fromAddr = '', subject = '', snippet = '') {
@@ -71,13 +83,22 @@ const PROMO_KEYWORDS = [
   'unsubscribe','weekly digest','daily deals','special offer',
   'discount','deal of the day','limited time',
 ];
-const ACTIONABLE_KEYWORDS = [
+const PLATFORM_SENDERS = [
+  'naukri', 'linkedin', 'github', 'instagram', 'facebook', 'twitter',
+  'youtube', 'google', 'amazon', 'flipkart', 'swiggy', 'zomato',
+  'paytm', 'phonepe', 'razorpay', 'stripe', 'paypal', 'indeed',
+  'glassdoor', 'monster', 'internshala', 'shine.com', 'apna',
+];
+
+const PLATFORM_SUBJECTS = [
   'otp', 'verification code', 'one-time password', 'security code',
   'verify your', 'confirm your account', 'password reset', 'reset your password',
   'security alert', 'new sign-in', 'login attempt', 'two-factor', '2fa',
   'invoice', 'receipt', 'payment confirmation', 'order confirmation',
   'shipping update', 'delivery notification', 'tracking update',
-  'meeting invite', 'calendar invite', 'appointment confirmation',
+  'job alert', 'new job', 'recruiter viewed', 'applied to',
+  'new follower', 'liked your', 'commented on', 'connection request',
+  'weekly digest', 'monthly digest', 'your activity',
 ];
 
 function ruleBasedClassify(subject = '', snippet = '', fromAddr = '', userOwnEmail = '') {
@@ -87,7 +108,9 @@ function ruleBasedClassify(subject = '', snippet = '', fromAddr = '', userOwnEma
   const spamScore = SPAM_KEYWORDS.filter(k => text.includes(k)).length;
   if (spamScore >= 2) return 'spam';
 
-  if (ACTIONABLE_KEYWORDS.some(k => text.includes(k))) return 'important';
+  // Platform/service emails → promo
+  if (PLATFORM_SENDERS.some(k => text.includes(k))) return 'promo';
+  if (PLATFORM_SUBJECTS.some(k => text.includes(k))) return 'promo';
 
   const promoScore = PROMO_KEYWORDS.filter(k => text.includes(k)).length;
   if (promoScore >= 1) return 'promo';
@@ -107,11 +130,11 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
     {
       role: 'system',
       content:
-        'You are an email classifier. Read the actual subject and content and classify the email as exactly one of: important, promo, or spam.\n' +
-        '- important: anything the user needs to see or act on — personal messages, work emails, OTPs/verification codes, security alerts, sign-in notifications, password resets, invoices, receipts, payment confirmations, shipping/delivery updates, calendar or meeting invites, bills, or any message with real, specific content relevant to the user. A reply is NOT required for an email to be important.\n' +
-        '- promo: marketing campaigns, newsletters, sales, discounts, coupons, or content trying to get the user to buy or engage with something they did not specifically request.\n' +
-        '- spam: unsolicited bulk junk, phishing, or scams with clear malicious or deceptive intent.\n' +
-        'Judge ONLY by the actual subject and preview content below — never assume something is promo just because it looks automated or transactional, and never assume something is spam just because it is short or casual (e.g. "hi", "test message" from a known contact is important, not spam).\n' +
+        'You are an email classifier. Classify emails as exactly one of: important, promo, or spam.\n\n' +
+        'IMPORTANT: Emails that require a human reply from the user — personal messages, work emails, direct questions, client emails, colleague messages, interview calls, collaboration requests.\n\n' +
+        'PROMO: All automated/system/platform emails that do NOT need a reply — OTPs, verification codes, password resets, security alerts, login notifications, job alerts from Naukri/LinkedIn/Indeed, social media notifications (Instagram/Facebook/Twitter/GitHub), order confirmations, invoices, receipts, payment confirmations, shipping updates, newsletters, digests, weekly updates, app notifications, promotional offers, discount emails, any email from a platform or service.\n\n' +
+        'SPAM: Phishing, scams, unsolicited junk, lottery/prize emails, suspicious links.\n\n' +
+        'KEY RULE: If the email is from a platform/service/app (not a real person writing directly to the user), classify as PROMO. Only classify as IMPORTANT if a real human is directly writing to the user expecting a reply.\n\n' +
         'Respond with ONE word only: important, promo, or spam.',
     },
     {
