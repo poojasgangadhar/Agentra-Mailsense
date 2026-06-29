@@ -46,7 +46,7 @@ const SCHEMA = `
     from_addr TEXT, from_name TEXT, subject TEXT, snippet TEXT, body TEXT,
     tag TEXT DEFAULT 'important', color TEXT DEFAULT '#4f6ef7',
     replied INTEGER DEFAULT 0, archived INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0,
-    email_time TEXT, fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+    email_time TEXT, internal_date INTEGER DEFAULT 0, fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS agent_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT, user_email TEXT NOT NULL,
@@ -153,16 +153,26 @@ const stmts = {
   getToken:         prepare('SELECT * FROM gmail_tokens WHERE user_email = ?'),
   upsertToken:      prepare('INSERT INTO gmail_tokens (user_email, access_token, refresh_token, token_expiry, scope) VALUES ($user_email, $access_token, $refresh_token, $token_expiry, $scope) ON CONFLICT(user_email) DO UPDATE SET access_token = excluded.access_token, refresh_token = COALESCE(excluded.refresh_token, gmail_tokens.refresh_token), token_expiry = excluded.token_expiry, scope = excluded.scope'),
   deleteToken:      prepare('DELETE FROM gmail_tokens WHERE user_email = ?'),
-  upsertEmail:      prepare('INSERT INTO emails (id, user_email, gmail_id, thread_id, from_addr, from_name, subject, snippet, body, tag, color, email_time) VALUES ($id, $user_email, $gmail_id, $thread_id, $from_addr, $from_name, $subject, $snippet, $body, $tag, $color, $email_time) ON CONFLICT(id) DO UPDATE SET tag = COALESCE(emails.tag, excluded.tag), snippet = excluded.snippet, body = excluded.body'),
-  getEmails:        prepare('SELECT * FROM emails WHERE user_email = ? AND deleted = 0 ORDER BY fetched_at DESC LIMIT 100'),
+  upsertEmail:      prepare('INSERT INTO emails (id, user_email, gmail_id, thread_id, from_addr, from_name, subject, snippet, body, tag, color, email_time, internal_date) VALUES ($id, $user_email, $gmail_id, $thread_id, $from_addr, $from_name, $subject, $snippet, $body, $tag, $color, $email_time, $internal_date) ON CONFLICT(id) DO UPDATE SET tag = COALESCE(emails.tag, excluded.tag), snippet = excluded.snippet, body = excluded.body, internal_date = excluded.internal_date'),
+  getEmails:        prepare('SELECT * FROM emails WHERE user_email = ? AND deleted = 0 ORDER BY internal_date DESC LIMIT 500'),
   markEmailReplied: prepare('UPDATE emails SET replied = 1 WHERE id = ?'),
   insertLog:        prepare('INSERT INTO agent_logs (user_email, dot_color, message) VALUES (?, ?, ?)'),
   getLogs:          prepare('SELECT * FROM agent_logs WHERE user_email = ? ORDER BY id DESC LIMIT 100'),
   upsertStats:      prepare("INSERT INTO agent_stats (user_email, total, important, promo, spam, replied) VALUES ($user_email, $total, $important, $promo, $spam, $replied) ON CONFLICT(user_email) DO UPDATE SET total = excluded.total, important = excluded.important, promo = excluded.promo, spam = excluded.spam, replied = excluded.replied, updated_at = datetime('now')"),
 };
 
+const MIGRATIONS = [
+  // Add internal_date column if missing (migration for existing DBs)
+  "ALTER TABLE emails ADD COLUMN internal_date INTEGER DEFAULT 0",
+];
+
 const initPromise = db.executeMultiple(SCHEMA)
-  .then(() => console.log('[db] Turso initialised OK'))
+  .then(async () => {
+    for (const migration of MIGRATIONS) {
+      try { await db.execute(migration); } catch { /* column already exists */ }
+    }
+    console.log('[db] Turso initialised OK');
+  })
   .catch(err => {
     console.error('[db] FATAL:', err.message);
     // Do NOT process.exit() here — this runs inside a serverless function.
