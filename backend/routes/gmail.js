@@ -125,17 +125,19 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
       });
     }
 
-    // Step 2: Classify new emails in parallel batches of 5
+    // Step 2: Classify new emails in parallel batches of 5 (fire and forget to avoid timeout)
     const CLASS_BATCH = 5;
-    for (let i = 0; i < toClassify.length; i += CLASS_BATCH) {
-      const batch = toClassify.slice(i, i + CLASS_BATCH);
-      await Promise.all(batch.map(async msg => {
-        try {
-          const tag = await classifyEmail({ subject: msg.subject, snippet: msg.snippet, fromAddr: msg.from_addr, fromName: msg.from_name, userOwnEmail: email });
-          await exec('UPDATE emails SET tag = ? WHERE id = ?', tag, msg.id);
-        } catch { /* keep default tag */ }
-      }));
-    }
+    (async () => {
+      for (let i = 0; i < toClassify.length; i += CLASS_BATCH) {
+        const batch = toClassify.slice(i, i + CLASS_BATCH);
+        await Promise.all(batch.map(async msg => {
+          try {
+            const tag = await classifyEmail({ subject: msg.subject, snippet: msg.snippet, fromAddr: msg.from_addr, fromName: msg.from_name, userOwnEmail: email });
+            await exec('UPDATE emails SET tag = ? WHERE id = ?', tag, msg.id);
+          } catch { /* keep default tag */ }
+        }));
+      }
+    })().catch(() => {});
     const toArchive = [];
     for (const m of messages) {
       const t = await queryOne('SELECT tag FROM emails WHERE id = ?', m.id);

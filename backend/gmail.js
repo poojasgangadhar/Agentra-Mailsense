@@ -124,7 +124,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   // 'all' = no date filter
 
   // Cap maxResults
-  const cap = Math.min(parseInt(maxResults) || 100, 500);
+  const cap = Math.min(parseInt(maxResults) || 100, 100); // Cap at 100 to avoid Vercel timeout
 
   // List message IDs with pagination to get newest emails first
   let messageIds = [];
@@ -146,14 +146,14 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   if (messageIds.length === 0) return [];
 
   // Fetch each message in parallel (batched to avoid rate limits)
-  const BATCH = 10;
+  const BATCH = 20;
   const messages = [];
 
   for (let i = 0; i < messageIds.length; i += BATCH) {
     const batch = messageIds.slice(i, i + BATCH);
     const fetched = await Promise.all(
       batch.map(id =>
-        gmail.users.messages.get({ userId: 'me', id, format: 'full' })
+        gmail.users.messages.get({ userId: 'me', id, format: 'metadata', metadataHeaders: ['From', 'Subject', 'Date'] })
           .then(r => r.data)
           .catch(() => null)
       )
@@ -195,6 +195,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
       snippet:   msg.snippet || '',
       body:      extractBody(msg.payload),
       email_time: emailTime,
+      internal_date: parseInt(msg.internalDate || 0),
     };
   });
 }
