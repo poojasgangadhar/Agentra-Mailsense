@@ -877,6 +877,20 @@ function App(){
     else if(p.get('gmail')==='error'){t(`Gmail error: ${p.get('reason')||'unknown'}`,'red');window.history.replaceState({},'',window.location.pathname);}
   },[showOB]);
 
+  // Auto-refresh: silently fetch new emails every 2 minutes
+  useEffect(()=>{
+    if(!gmailConn) return;
+    const interval = setInterval(async ()=>{
+      try {
+        const res = await authFetch('/api/gmail-fetch', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({maxEmails:50, dateRange:'yesterday'})});
+        const d = await res.json();
+        if(d.emails) setEmails(d.emails);
+        if(d.stats) setStats(d.stats);
+      } catch {}
+    }, 2 * 60 * 1000); // every 2 minutes
+    return () => clearInterval(interval);
+  },[gmailConn]);
+
   const loadStatus=async()=>{
    try{const res=await authFetch('/api/gmail-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const d=await res.json();if(d.connected){setGmailConn(true);if(d.emails)setEmails(d.emails);if(d.stats)setStats(d.stats);if(d.logs)setLogs(d.logs);}}catch{} 
   };
