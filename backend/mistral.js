@@ -30,31 +30,44 @@ function isSelfSent(fromAddr = '', userOwnEmail = '') {
 
 // ── No-reply / automated sender detection ─────────────────────
 const NO_REPLY_PATTERNS = [
+  // Generic no-reply patterns
   'noreply', 'no-reply', 'donotreply', 'do-not-reply',
   'notifications@', 'notification@', 'alerts@', 'alert@',
   'mailer@', 'mailer-daemon', 'postmaster@', 'bounce@',
   'automated@', 'system@', 'robot@', 'daemon@',
   'accounts-noreply@', 'mail-noreply@',
-  // Job/social platforms
+  // Job/social platforms — these never need replies
   'naukri', 'linkedin', 'github', 'instagram', 'facebook', 'twitter',
   'youtube', 'google', 'amazon', 'flipkart', 'swiggy', 'zomato',
   'paytm', 'phonepe', 'razorpay', 'stripe', 'paypal',
+  'indeed', 'glassdoor', 'monster', 'internshala', 'apna',
+  // Common automated senders
   'info@', 'support@', 'hello@', 'team@', 'contact@',
+  'newsletter@', 'news@', 'updates@', 'update@', 'digest@',
+  'marketing@', 'promo@', 'deals@', 'offers@', 'billing@',
 ];
 
 const NO_REPLY_SUBJECTS = [
+  // OTP / security
   'otp', 'verification code', 'one-time password', 'security code',
   'password reset', 'reset your password', 'two-factor', '2fa',
-  'login attempt', 'new sign-in', 'security alert',
+  'login attempt', 'new sign-in', 'security alert', 'verify your',
+  'confirm your', 'account verification', 'email verification',
+  // Automated messages
   'do not reply', 'do not respond', 'automated message',
-  'automatic reply', 'this is an automated',
-  // Job/social notifications
+  'automatic reply', 'this is an automated', 'auto-reply',
+  // Job/social platform notifications
   'applied to', 'job alert', 'new job', 'recruiter', 'viewed your profile',
   'connection request', 'new follower', 'liked your', 'commented on',
   'new notification', 'activity on', 'digest', 'weekly update',
+  'monthly update', 'your weekly', 'your monthly',
+  // Transactional
   'your order', 'order confirmed', 'order shipped', 'delivery',
   'payment received', 'payment confirmed', 'transaction',
-  'invoice', 'receipt', 'statement',
+  'invoice', 'receipt', 'statement', 'subscription',
+  // Notifications from platforms
+  'new message on', 'someone replied', 'you have a new',
+  'push notification', 'app notification',
 ];
 
 function isNoReplyEmail(fromAddr = '', subject = '', snippet = '') {

@@ -182,8 +182,22 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
     await stmts.insertLog.run(email, 'green', `Fetched <strong>${messages.length}</strong> emails (${newCount} new, classified)`);
     const allEmails = await stmts.getEmails.all(email);
     const pendingImportant = allEmails
-      .filter(e => e.tag === 'important' && !e.replied && !e.deleted)
+      .filter(e => e.tag === 'important' && !e.replied && !e.deleted && !e.archived)
       .filter(e => !isNoReplyEmail(e.from_addr, e.subject, e.snippet))
+      .filter(e => {
+        // Only reply to emails from real people (personal email domains)
+        const addr = (e.from_addr || '').toLowerCase();
+        // Skip if it looks like a platform/service email
+        const platformDomains = [
+          'naukri.com','linkedin.com','github.com','instagram.com','facebook.com',
+          'twitter.com','youtube.com','google.com','amazon.com','flipkart.com',
+          'swiggy.com','zomato.com','paytm.com','phonepe.com','razorpay.com',
+          'stripe.com','paypal.com','indeed.com','glassdoor.com','monster.com',
+          'internshala.com','apna.co','medium.com','substack.com','mailchimp.com',
+          'sendgrid.net','amazonaws.com','notifications.google.com',
+        ];
+        return !platformDomains.some(d => addr.includes(d));
+      })
       .map(e => e.id);
     res.json({
       success: true, fetched: messages.length, new_classified: newCount, stats,
@@ -211,8 +225,20 @@ router.post('/gmail-reply', requireAuth, async (req, res) => {
   const emailRow = await queryOne('SELECT * FROM emails WHERE id = ? AND user_email = ?', emailId, userEmail);
   if (!emailRow) return res.status(404).json({ error: 'Email not found.' });
   if (emailRow.replied) return res.json({ success: true, skipped: true, message: 'Already replied.' });
-  if (mode === 'fast' && isNoReplyEmail(emailRow.from_addr, emailRow.subject, emailRow.snippet)) {
+  if (isNoReplyEmail(emailRow.from_addr, emailRow.subject, emailRow.snippet)) {
     return res.json({ success: false, skipped: true, message: 'Skipped — automated/no-reply sender.' });
+  }
+  const platformDomains = [
+    'naukri.com','linkedin.com','github.com','instagram.com','facebook.com',
+    'twitter.com','youtube.com','google.com','amazon.com','flipkart.com',
+    'swiggy.com','zomato.com','paytm.com','phonepe.com','razorpay.com',
+    'stripe.com','paypal.com','indeed.com','glassdoor.com','monster.com',
+    'internshala.com','apna.co','medium.com','substack.com','mailchimp.com',
+    'sendgrid.net','amazonaws.com','notifications.google.com',
+  ];
+  const fromAddr = (emailRow.from_addr || '').toLowerCase();
+  if (platformDomains.some(d => fromAddr.includes(d))) {
+    return res.json({ success: false, skipped: true, message: 'Skipped — platform/service email.' });
   }
   try {
     const userRow = await stmts.getUserByEmail.get(userEmail);
