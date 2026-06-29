@@ -106,12 +106,14 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
         refresh_token: tokenRow.refresh_token, token_expiry: tokenRow.token_expiry, scope: tokenRow.scope,
       });
     }
+    // Step 1: Save all emails immediately with existing tag or 'important' as default
     let newCount = 0;
+    const toClassify = [];
     for (const msg of messages) {
       const existing = await queryOne('SELECT id, tag FROM emails WHERE id = ?', msg.id);
-      let tag = existing?.tag;
-      if (!tag) {
-        tag = await classifyEmail({ subject: msg.subject, snippet: msg.snippet, fromAddr: msg.from_addr, fromName: msg.from_name, userOwnEmail: email });
+      const tag = existing?.tag || 'important';
+      if (!existing?.tag) {
+        toClassify.push(msg);
         newCount++;
       }
       await stmts.upsertEmail.run({
@@ -119,7 +121,20 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
         from_addr: msg.from_addr || '', from_name: msg.from_name || '',
         subject: msg.subject || '', snippet: msg.snippet || '', body: msg.body || '',
         tag, color: colorForEmail(msg.from_addr), email_time: msg.email_time || '',
+        internal_date: msg.internal_date || 0,
       });
+    }
+
+    // Step 2: Classify new emails in parallel batches of 5
+    const CLASS_BATCH = 5;
+    for (let i = 0; i < toClassify.length; i += CLASS_BATCH) {
+      const batch = toClassify.slice(i, i + CLASS_BATCH);
+      await Promise.all(batch.map(async msg => {
+        try {
+          const tag = await classifyEmail({ subject: msg.subject, snippet: msg.snippet, fromAddr: msg.from_addr, fromName: msg.from_name, userOwnEmail: email });
+          await exec('UPDATE emails SET tag = ? WHERE id = ?', tag, msg.id);
+        } catch { /* keep default tag */ }
+      }));
     }
     const toArchive = [];
     for (const m of messages) {
