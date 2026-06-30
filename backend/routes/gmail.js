@@ -211,6 +211,16 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('[gmail-fetch]', err);
+    const isInvalidGrant = err.message && err.message.includes('invalid_grant');
+    if (isInvalidGrant) {
+      // Refresh token is dead — clear it so user is prompted to reconnect cleanly
+      try { await stmts.deleteToken.run(email); } catch {}
+      await stmts.insertLog.run(email, 'red', 'Gmail connection expired. Please reconnect Gmail.');
+      return res.status(401).json({
+        error: 'Gmail connection expired. Please reconnect your Gmail account.',
+        code: 'GMAIL_RECONNECT_REQUIRED',
+      });
+    }
     await stmts.insertLog.run(email, 'red', `Fetch failed: ${err.message}`);
     res.status(500).json({ error: err.message || 'Failed to fetch emails.' });
   }

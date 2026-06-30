@@ -919,6 +919,10 @@ function App(){
         if(d.stats)setStats(d.stats);
         addLog('green',`Fetched <strong>${d.fetched}</strong> emails`);
         t(`Fetched ${d.fetched} emails`,'green');
+      }else if(d.code==='GMAIL_RECONNECT_REQUIRED'){
+        setGmailConn(false);
+        addLog('red','Gmail connection expired — please reconnect');
+        t('Gmail connection expired. Please reconnect Gmail in Settings.','red');
       }else{addLog('red',d.error||'Failed');t(d.error||'Fetch failed','red');}
     }catch{t('Network error','red');}
     setFetching(false);
