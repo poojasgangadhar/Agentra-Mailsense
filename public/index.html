@@ -377,7 +377,7 @@ body{
 </div>
 
 <script>
-const BASE_URL = (window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost') ? 'https://mailsense-fixed.vercel.app' : '';
+const BASE_URL = (window.Capacitor || window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost') ? 'https://mailsense-fixed.vercel.app' : '';
 // ── Email typo validator ─────────────────────────────────────
 function validateEmailInput(input, hintId) {
   const val = input.value.trim();
@@ -419,7 +419,7 @@ function doGoogleLogin(){
   const btn = document.querySelector('.btn-social');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Redirecting to Google…'; }
   // Pass state=mobile so backend redirects back to mailsense:// deep link
-  const isMobile = window.location.protocol === 'capacitor:';
+  const isMobile = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const loginUrl = BASE_URL+'/api/google-login' + (isMobile ? '?state=mobile' : '');
   if (isMobile && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
     // Open in system browser so Google OAuth + deep link redirect work correctly
