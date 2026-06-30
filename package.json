@@ -24,6 +24,9 @@
     }
   },
   "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
     "@libsql/client": "^0.14.0",
     "@simplewebauthn/server": "^10.0.1",
     "bcryptjs": "^2.4.3",
