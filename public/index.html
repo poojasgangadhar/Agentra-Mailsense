@@ -420,7 +420,13 @@ function doGoogleLogin(){
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Redirecting to Google…'; }
   // Pass state=mobile so backend redirects back to mailsense:// deep link
   const isMobile = window.location.protocol === 'capacitor:';
-  window.location.href = BASE_URL+'/api/google-login' + (isMobile ? '?state=mobile' : '');
+  const loginUrl = BASE_URL+'/api/google-login' + (isMobile ? '?state=mobile' : '');
+  if (isMobile && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+    // Open in system browser so Google OAuth + deep link redirect work correctly
+    window.Capacitor.Plugins.Browser.open({ url: loginUrl });
+  } else {
+    window.location.href = loginUrl;
+  }
 }
 
 // ── Theme ─────────────────────────────────────────────────────
@@ -507,6 +513,9 @@ window.addEventListener('load',()=>{
   if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
     window.Capacitor.Plugins.App.addListener('appUrlOpen', function(data) {
       if (data && data.url && data.url.startsWith('mailsense://callback')) {
+        if (window.Capacitor.Plugins.Browser) {
+          window.Capacitor.Plugins.Browser.close().catch(()=>{});
+        }
         const urlParams = new URLSearchParams(data.url.split('?')[1] || '');
         handleOAuthParams(urlParams);
       }
