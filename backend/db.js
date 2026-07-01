@@ -118,12 +118,14 @@ async function exec(sql, ...args) {
 async function recomputeStats(userEmail) {
   const rows = await query("SELECT tag, COUNT(*) as cnt FROM emails WHERE user_email = ? AND deleted = 0 GROUP BY tag", userEmail);
   const repliedRow = await queryOne("SELECT COUNT(*) as cnt FROM emails WHERE user_email = ? AND replied = 1 AND deleted = 0", userEmail);
-  const stats = { user_email: userEmail, total: 0, important: 0, promo: 0, spam: 0, replied: Number(repliedRow?.cnt || 0) };
+  const stats = { user_email: userEmail, total: 0, important: 0, promo: 0, spam: 0, social: 0, updates: 0, replied: Number(repliedRow?.cnt || 0) };
   for (const r of rows) {
     stats.total += Number(r.cnt);
     if (r.tag === 'important') stats.important = Number(r.cnt);
     if (r.tag === 'promo')     stats.promo     = Number(r.cnt);
     if (r.tag === 'spam')      stats.spam      = Number(r.cnt);
+    if (r.tag === 'social')    stats.social    = Number(r.cnt);
+    if (r.tag === 'updates')   stats.updates   = Number(r.cnt);
   }
   await stmts.upsertStats.run(stats);
   return stats;

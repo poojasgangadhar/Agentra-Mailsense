@@ -423,7 +423,7 @@ function doGoogleLogin(){
   const loginUrl = BASE_URL+'/api/google-login' + (isMobile ? '?state=mobile' : '');
   if (isMobile && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
     // Open in system browser so Google OAuth + deep link redirect work correctly
-    window.Capacitor.Plugins.Browser.open({ url: loginUrl });
+    window.Capacitor.Plugins.Browser.open({ url: loginUrl, toolbarColor: '#0f172a', presentationStyle: 'popover' });
   } else {
     window.location.href = loginUrl;
   }

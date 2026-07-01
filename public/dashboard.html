@@ -835,7 +835,7 @@ function App(){
   const [mode,setMode]=useState(localStorage.getItem('ms_mode')||'safe');
   const [emails,setEmails]=useState([]);
   const [logs,setLogs]=useState([]);
-  const [stats,setStats]=useState({total:0,important:0,promo:0,spam:0,replied:0});
+  const [stats,setStats]=useState({total:0,important:0,promo:0,spam:0,social:0,updates:0,replied:0});
   const [selected,setSelected]=useState([]);
   const [delCat,setDelCat]=useState('');
   const [toast,setToast]=useState(null);
@@ -1196,12 +1196,12 @@ function App(){
     const url = BASE_URL+`/api/gmail-auth?token=${encodeURIComponent(jwtToken)}&platform=mobile`;
     const isMobile = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
     if(isMobile && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser){
-      window.Capacitor.Plugins.Browser.open({ url });
+      window.Capacitor.Plugins.Browser.open({ url, toolbarColor: '#0f172a', presentationStyle: 'popover' });
     } else {
       window.location.href = `/api/gmail-auth?token=${encodeURIComponent(jwtToken)}`;
     }
   };
-  const disconnectGmail=async()=>{ try{await authFetch('/api/gmail-disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});setGmailConn(false);setEmails([]);setStats({total:0,important:0,promo:0,spam:0,replied:0});addLog('amber','Gmail disconnected');t('Gmail disconnected','amber');}catch{t('Failed to disconnect','red');} };
+  const disconnectGmail=async()=>{ try{await authFetch('/api/gmail-disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});setGmailConn(false);setEmails([]);setStats({total:0,important:0,promo:0,spam:0,social:0,updates:0,replied:0});addLog('amber','Gmail disconnected');t('Gmail disconnected','amber');}catch{t('Failed to disconnect','red');} };
 
   const toggleSel=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
   const selAll=()=>setSelected(filteredEmails(nav).map(e=>e.id));
@@ -1237,6 +1237,8 @@ function App(){
         <NavItem id="important" label="Important" icon={I.star}/>
         <NavItem id="promotions" label="Promotions" icon={I.archive} badge={stats.promo} badgeColor="amber"/>
         <NavItem id="spam" label="Spam" icon={I.trash} badge={stats.spam} badgeColor="red"/>
+        <NavItem id="social" label="Social" icon={I.star} badge={stats.social} badgeColor="blue"/>
+        <NavItem id="updates" label="Updates" icon={I.bell||I.mail} badge={stats.updates} badgeColor="teal"/>
         <NavItem id="bin" label="Bin" icon={I.bin}/>
         <span className="sb-sec">{mode==='safe'?'🛡️ Safe Mode':'⚡ Fast Mode'}</span>
         {mode==='safe'
@@ -1305,7 +1307,7 @@ function App(){
             <button className="action-btn" style={{flexShrink:0,fontSize:'.7rem',padding:'5px 9px'}} onClick={()=>go('settings')}>Change</button>
           </div>
           <div className="stats-grid">
-            {[{lbl:'Total',val:stats.total,sub:'In inbox',cls:'blue',icon:I.mail},{lbl:'Important',val:stats.important,sub:'Needs attention',cls:'teal',icon:I.star},{lbl:'Promotions',val:stats.promo,sub:'Auto-archived',cls:'amber',icon:I.archive},{lbl:'Spam',val:stats.spam,sub:'Filtered',cls:'red',icon:I.trash}].map((s,i)=>(
+            {[{lbl:'Total',val:stats.total,sub:'In inbox',cls:'blue',icon:I.mail},{lbl:'Important',val:stats.important,sub:'Needs attention',cls:'teal',icon:I.star},{lbl:'Social',val:stats.social,sub:'Notifications',cls:'purple',icon:I.star},{lbl:'Updates',val:stats.updates,sub:'Transactional',cls:'cyan',icon:I.mail},{lbl:'Promotions',val:stats.promo,sub:'Marketing',cls:'amber',icon:I.archive},{lbl:'Spam',val:stats.spam,sub:'Filtered',cls:'red',icon:I.trash}].map((s,i)=>(
               <div key={i} className={`stat-card ${s.cls}`}><div className="stat-icon">{s.icon}</div><div className="stat-label">{s.lbl}</div><div className="stat-value">{s.val}</div><div className="stat-sub">{s.sub}</div></div>
             ))}
           </div>

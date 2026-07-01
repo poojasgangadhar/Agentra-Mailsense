@@ -121,7 +121,13 @@ function ruleBasedClassify(subject = '', snippet = '', fromAddr = '', userOwnEma
   const spamScore = SPAM_KEYWORDS.filter(k => text.includes(k)).length;
   if (spamScore >= 2) return 'spam';
 
-  // Platform/service emails → promo
+  // Social platform emails → social
+  const SOCIAL_PLATFORMS = ['linkedin', 'instagram', 'facebook', 'twitter', 'github', 'youtube', 'whatsapp'];
+  if (SOCIAL_PLATFORMS.some(k => text.includes(k))) return 'social';
+  // Transactional emails → updates
+  const UPDATE_KEYWORDS = ['otp', 'verification', 'password reset', 'order', 'shipping', 'invoice', 'receipt', 'payment', 'naukri', 'indeed', 'security alert', 'account'];
+  if (UPDATE_KEYWORDS.some(k => text.includes(k))) return 'updates';
+  // Remaining platform/service emails → promo
   if (PLATFORM_SENDERS.some(k => text.includes(k))) return 'promo';
   if (PLATFORM_SUBJECTS.some(k => text.includes(k))) return 'promo';
 
@@ -143,12 +149,13 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
     {
       role: 'system',
       content:
-        'You are an email classifier. Classify emails as exactly one of: important, promo, or spam.\n\n' +
-        'IMPORTANT: Emails that require a human reply from the user — personal messages, work emails, direct questions, client emails, colleague messages, interview calls, collaboration requests.\n\n' +
-        'PROMO: All automated/system/platform emails that do NOT need a reply — OTPs, verification codes, password resets, security alerts, login notifications, job alerts from Naukri/LinkedIn/Indeed, social media notifications (Instagram/Facebook/Twitter/GitHub), order confirmations, invoices, receipts, payment confirmations, shipping updates, newsletters, digests, weekly updates, app notifications, promotional offers, discount emails, any email from a platform or service.\n\n' +
+        'You are an email classifier. Classify emails as exactly one of: important, promo, spam, social, or updates.\n\n' +
+        'IMPORTANT: Emails from real people needing a reply — colleagues, clients, family, friends, interviewers, direct personal messages.\n\n' +
+        'SOCIAL: Notifications from social/professional networks — LinkedIn, Instagram, Facebook, Twitter/X, GitHub, YouTube, WhatsApp, Discord.\n\n' +
+        'UPDATES: Transactional and system emails — OTPs, verification codes, password resets, order confirmations, shipping updates, invoices, receipts, payment confirmations, job alerts (Naukri/Indeed), app notifications, security alerts, account updates, Anthropic/Google/Amazon service emails.\n\n' +
+        'PROMO: Marketing/promotional emails — newsletters, discount offers, sale announcements, marketing campaigns, digests.\n\n' +
         'SPAM: Phishing, scams, unsolicited junk, lottery/prize emails, suspicious links.\n\n' +
-        'KEY RULE: If the email is from a platform/service/app (not a real person writing directly to the user), classify as PROMO. Only classify as IMPORTANT if a real human is directly writing to the user expecting a reply.\n\n' +
-        'Respond with ONE word only: important, promo, or spam.',
+        'Respond with ONE word only: important, promo, spam, social, or updates.',
     },
     {
       role: 'user',
@@ -159,7 +166,7 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
   try {
     const result = await mistralChat(messages, 10);
     const clean  = result.toLowerCase().replace(/[^a-z]/g, '');
-    if (['important', 'promo', 'spam'].includes(clean)) return clean;
+    if (['important', 'promo', 'spam', 'social', 'updates'].includes(clean)) return clean;
     return ruleBasedClassify(subject, snippet, fromAddr, userOwnEmail);
   } catch (err) {
     console.error('[Mistral] classify error:', err.message);
