@@ -536,9 +536,16 @@ window.addEventListener('load',()=>{
       sessionStorage.setItem('user_name',  gName || 'User');
       window.history.replaceState({}, '', '/');
       makeOverlay(`Welcome, ${gName || 'User'}! 👋`, 'Opening your dashboard…');
+      // Use localStorage instead of sessionStorage for native app (sessionStorage doesn't persist across WebView navigations)
+      const storage = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ? localStorage : sessionStorage;
+      const dashUrl = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ? '/dashboard.html' : '/dashboard.html';
+
       if (gToken) {
-        sessionStorage.setItem('jwt_token', gToken);
-        setTimeout(() => { window.location.href = '/dashboard.html'; }, 1400);
+        storage.setItem('jwt_token', gToken);
+        storage.setItem('is_logged_in', 'true');
+        storage.setItem('user_email', gEmail);
+        storage.setItem('user_name', gName || 'User');
+        setTimeout(() => { window.location.href = dashUrl; }, 1400);
       } else if (sessionCode) {
         // Exchange session code for real JWT
         fetch(BASE_URL + '/api/claim-session', {
@@ -547,8 +554,11 @@ window.addEventListener('load',()=>{
           body: JSON.stringify({ code: sessionCode })
         }).then(r => r.json()).then(d => {
           if (d.token) {
-            sessionStorage.setItem('jwt_token', d.token);
-            setTimeout(() => { window.location.href = '/dashboard.html'; }, 1400);
+            storage.setItem('jwt_token', d.token);
+            storage.setItem('is_logged_in', 'true');
+            storage.setItem('user_email', gEmail);
+            storage.setItem('user_name', gName || 'User');
+            setTimeout(() => { window.location.href = dashUrl; }, 1400);
           } else {
             showMsg('login-msg', 'error', 'Google sign-in failed. Please try again.');
           }

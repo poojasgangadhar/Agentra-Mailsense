@@ -505,8 +505,10 @@ input,textarea,select,button{font-size:14px !important;}
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const jwtToken = sessionStorage.getItem('jwt_token');
-if (!sessionStorage.getItem('is_logged_in') || !jwtToken) { window.location.href = '/'; }
+// Check both localStorage (native app) and sessionStorage (web)
+const jwtToken = sessionStorage.getItem('jwt_token') || localStorage.getItem('jwt_token');
+const isLoggedIn = sessionStorage.getItem('is_logged_in') || localStorage.getItem('is_logged_in');
+if (!isLoggedIn || !jwtToken) { window.location.href = '/'; }
 
 // fetch wrapper that attaches the JWT and sends the user back to
 // login if the session is invalid/expired.
@@ -825,8 +827,8 @@ function EmailDetailModal({email, mode, userEmail, onClose, onReply, onDelete, o
 
 /* ════════════════════════════════════════════════════════════ */
 function App(){
-  const userEmail=sessionStorage.getItem('user_email')||'';
-  const userName=sessionStorage.getItem('user_name')||'User';
+  const userEmail=sessionStorage.getItem('user_email')||localStorage.getItem('user_email')||'';
+  const userName=sessionStorage.getItem('user_name')||localStorage.getItem('user_name')||'User';
 
   const [showOB,setShowOB]=useState(localStorage.getItem('ms_onboarded')!=='true');
   const [nav,setNav]=useState('dashboard');
