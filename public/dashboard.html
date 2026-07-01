@@ -1193,6 +1193,7 @@ function App(){
   };
   
   const connectGmail=()=>{
+    const BASE_URL = window.location.origin;
     const url = BASE_URL+`/api/gmail-auth?token=${encodeURIComponent(jwtToken)}&platform=mobile`;
     const isMobile = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
     if(isMobile && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser){
