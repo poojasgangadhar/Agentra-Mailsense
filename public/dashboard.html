@@ -870,11 +870,24 @@ function App(){
   const [showBiometricPrompt,setShowBiometricPrompt]=useState(false);
 
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('ms_theme',theme);},[theme]);
+  const handleGmailParams=(params)=>{
+    if(params.get('gmail')==='connected'){setGmailConn(true);addLog('green','Gmail connected!');t('Gmail connected! Fetching emails…','green');window.history.replaceState({},'',window.location.pathname);setTimeout(()=>fetchEmails(),1200);}
+    else if(params.get('gmail')==='error'){t(`Gmail error: ${params.get('reason')||'unknown'}`,'red');window.history.replaceState({},'',window.location.pathname);}
+  };
+
   useEffect(()=>{
     if(!showOB&&userEmail)loadStatus();
-    const p=new URLSearchParams(window.location.search);
-    if(p.get('gmail')==='connected'){setGmailConn(true);addLog('green','Gmail connected!');t('Gmail connected! Fetching emails…','green');window.history.replaceState({},'',window.location.pathname);setTimeout(()=>fetchEmails(),1200);}
-    else if(p.get('gmail')==='error'){t(`Gmail error: ${p.get('reason')||'unknown'}`,'red');window.history.replaceState({},'',window.location.pathname);}
+    handleGmailParams(new URLSearchParams(window.location.search));
+    // Handle deep link from mailsense://dashboard?gmail=connected (mobile Gmail OAuth)
+    if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){
+      window.Capacitor.Plugins.App.addListener('appUrlOpen',(data)=>{
+        if(data&&data.url&&data.url.startsWith('mailsense://dashboard')){
+          if(window.Capacitor.Plugins.Browser) window.Capacitor.Plugins.Browser.close().catch(()=>{});
+          const params=new URLSearchParams(data.url.split('?')[1]||'');
+          handleGmailParams(params);
+        }
+      });
+    }
   },[showOB]);
 
   // Auto-refresh: silently fetch new emails every 2 minutes
@@ -1177,7 +1190,15 @@ function App(){
     setDelLoading(false);
   };
   
-  const connectGmail=()=>{ window.location.href=`/api/gmail-auth?token=${encodeURIComponent(jwtToken)}`; };
+  const connectGmail=()=>{
+    const url = BASE_URL+`/api/gmail-auth?token=${encodeURIComponent(jwtToken)}&platform=mobile`;
+    const isMobile = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    if(isMobile && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser){
+      window.Capacitor.Plugins.Browser.open({ url });
+    } else {
+      window.location.href = `/api/gmail-auth?token=${encodeURIComponent(jwtToken)}`;
+    }
+  };
   const disconnectGmail=async()=>{ try{await authFetch('/api/gmail-disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});setGmailConn(false);setEmails([]);setStats({total:0,important:0,promo:0,spam:0,replied:0});addLog('amber','Gmail disconnected');t('Gmail disconnected','amber');}catch{t('Failed to disconnect','red');} };
 
   const toggleSel=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);

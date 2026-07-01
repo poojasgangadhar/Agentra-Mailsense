@@ -46,20 +46,28 @@ function formatEmail(row) {
 
 router.get('/gmail-auth', (req, res) => {
   const token = req.query.token;
+  const platform = req.query.platform || '';
   const payload = token && verifyToken(token);
   if (!payload?.email) return res.status(401).send('Authentication required.');
-  // Re-use the verified JWT as the OAuth `state` so the callback
-  // can confirm the email without trusting a client-supplied value.
-  res.redirect(gmailHelper.getAuthUrl(token));
+  // Encode platform into state so callback knows whether to use deep link
+  const state = platform === 'mobile' ? `${token}|mobile` : token;
+  res.redirect(gmailHelper.getAuthUrl(state));
 });
 
 router.get('/oauth2callback', async (req, res) => {
-  const { code, state: token, error } = req.query;
+  const { code, state: rawState, error } = req.query;
   const APP_URL = process.env.APP_URL || 'http://localhost:3000';
-  if (error) return res.redirect(`${APP_URL}/dashboard.html?gmail=error&reason=${error}`);
+  // Parse state — may be "jwt|mobile" or just "jwt"
+  const isMobile = rawState && rawState.endsWith('|mobile');
+  const token = isMobile ? rawState.slice(0, -7) : rawState;
+  const makeRedirect = (path, params) => {
+    if (isMobile) return `mailsense://dashboard?${params}`;
+    return `${APP_URL}/${path}?${params}`;
+  };
+  if (error) return res.redirect(makeRedirect('dashboard.html', `gmail=error&reason=${error}`));
   const payload = token && verifyToken(token);
   const email = payload?.email;
-  if (!code || !email) return res.redirect(`${APP_URL}/dashboard.html?gmail=error&reason=missing_code`);
+  if (!code || !email) return res.redirect(makeRedirect('dashboard.html', 'gmail=error&reason=missing_code'));
   try {
     const tokens = await gmailHelper.exchangeCode(code);
     await stmts.upsertToken.run({
@@ -69,10 +77,10 @@ router.get('/oauth2callback', async (req, res) => {
       scope: tokens.scope || '',
     });
     await stmts.insertLog.run(email, 'green', `Gmail connected successfully for <strong>${email}</strong>`);
-    res.redirect(`${APP_URL}/dashboard.html?gmail=connected`);
+    res.redirect(makeRedirect('dashboard.html', 'gmail=connected'));
   } catch (err) {
     console.error('[OAuth]', err);
-    res.redirect(`${APP_URL}/dashboard.html?gmail=error&reason=token_exchange`);
+    res.redirect(makeRedirect('dashboard.html', 'gmail=error&reason=token_exchange'));
   }
 });
 
