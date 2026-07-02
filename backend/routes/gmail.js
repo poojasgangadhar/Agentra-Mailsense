@@ -115,12 +115,23 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
       });
     }
     // Step 1: Save all emails immediately with existing tag or 'important' as default
+    // Social platform domains — force reclassify if tagged as promo/important incorrectly
+    const SOCIAL_DOMAINS = ['linkedin.com','instagram.com','facebook.com','twitter.com','x.com','github.com','youtube.com','whatsapp.com','discord.com'];
+    const UPDATE_DOMAINS = ['naukri.com','indeed.com','glassdoor.com','amazon.com','flipkart.com','swiggy.com','zomato.com','paytm.com','phonepe.com','razorpay.com'];
+
     let newCount = 0;
     const toClassify = [];
     for (const msg of messages) {
       const existing = await queryOne('SELECT id, tag FROM emails WHERE id = ?', msg.id);
-      const tag = existing?.tag || 'important';
-      if (!existing?.tag) {
+      const addr = (msg.from_addr || '').toLowerCase();
+      const isSocial = SOCIAL_DOMAINS.some(d => addr.includes(d));
+      const isUpdate = UPDATE_DOMAINS.some(d => addr.includes(d));
+
+      let tag = existing?.tag || 'important';
+      // Force correct tag for known social/update domains regardless of old tag
+      if (isSocial) tag = 'social';
+      else if (isUpdate) tag = 'updates';
+      else if (!existing?.tag) {
         toClassify.push(msg);
         newCount++;
       }
