@@ -55,7 +55,7 @@ const SCHEMA = `
   );
   CREATE TABLE IF NOT EXISTS agent_stats (
     user_email TEXT PRIMARY KEY, total INTEGER DEFAULT 0, important INTEGER DEFAULT 0,
-    promo INTEGER DEFAULT 0, spam INTEGER DEFAULT 0, replied INTEGER DEFAULT 0,
+    promo INTEGER DEFAULT 0, spam INTEGER DEFAULT 0, social INTEGER DEFAULT 0, updates INTEGER DEFAULT 0, replied INTEGER DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS user_settings (
@@ -160,12 +160,15 @@ const stmts = {
   markEmailReplied: prepare('UPDATE emails SET replied = 1 WHERE id = ?'),
   insertLog:        prepare('INSERT INTO agent_logs (user_email, dot_color, message) VALUES (?, ?, ?)'),
   getLogs:          prepare('SELECT * FROM agent_logs WHERE user_email = ? ORDER BY id DESC LIMIT 100'),
-  upsertStats:      prepare("INSERT INTO agent_stats (user_email, total, important, promo, spam, replied) VALUES ($user_email, $total, $important, $promo, $spam, $replied) ON CONFLICT(user_email) DO UPDATE SET total = excluded.total, important = excluded.important, promo = excluded.promo, spam = excluded.spam, replied = excluded.replied, updated_at = datetime('now')"),
+  upsertStats:      prepare("INSERT INTO agent_stats (user_email, total, important, promo, spam, social, updates, replied) VALUES ($user_email, $total, $important, $promo, $spam, $social, $updates, $replied) ON CONFLICT(user_email) DO UPDATE SET total = excluded.total, important = excluded.important, promo = excluded.promo, spam = excluded.spam, social = excluded.social, updates = excluded.updates, replied = excluded.replied, updated_at = datetime('now')"),
 };
 
 const MIGRATIONS = [
   // Add internal_date column if missing (migration for existing DBs)
   "ALTER TABLE emails ADD COLUMN internal_date INTEGER DEFAULT 0",
+  // Add social and updates columns to agent_stats
+  "ALTER TABLE agent_stats ADD COLUMN social INTEGER DEFAULT 0",
+  "ALTER TABLE agent_stats ADD COLUMN updates INTEGER DEFAULT 0",
 ];
 
 const initPromise = db.executeMultiple(SCHEMA)

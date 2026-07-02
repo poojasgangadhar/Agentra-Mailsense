@@ -71,13 +71,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 
 /* ── Sidebar — Claude-style collapse ── */
 .sidebar{
-  width:200px;background:var(--surface);border-right:1px solid var(--border);
+  width:230px;background:var(--surface);border-right:1px solid var(--border);
   display:flex;flex-direction:column;z-index:50;flex-shrink:0;
   transition:width .28s cubic-bezier(.4,0,.2,1);overflow:hidden;
 }
 .sidebar.collapsed{width:52px;}
 /* Labels/text: fade out when collapsed */
-.sb-label{white-space:nowrap;overflow:hidden;opacity:1;max-width:180px;transition:opacity .2s,max-width .28s cubic-bezier(.4,0,.2,1);}
+.sb-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:1;flex:1;min-width:0;transition:opacity .2s,max-width .28s cubic-bezier(.4,0,.2,1);}
 .sidebar.collapsed .sb-label{opacity:0;max-width:0;}
 /* Section headers */
 .sb-sec{font-size:.6rem;font-weight:600;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase;padding:10px 14px 4px;white-space:nowrap;overflow:hidden;opacity:1;max-width:200px;transition:opacity .2s,max-width .28s;}
