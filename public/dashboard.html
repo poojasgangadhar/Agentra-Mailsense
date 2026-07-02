@@ -1215,7 +1215,7 @@ function App(){
 
   const unread=notifs.filter(n=>n.unread).length;
   const safePending=mode==='safe'?emails.filter(e=>e.tag==='important'&&!e.replied&&!e.deleted).length:0;
-  const titles={dashboard:'Dashboard',inbox:'Inbox',important:'Important',promotions:'Promotions',spam:'Spam',bin:'Bin',logs:'Agent Logs',gmail:'Gmail',notifications:'Notifications',settings:'Settings','safe-review':'Review Replies','fast-analyzer':'Reply Analyzer'};
+  const titles={dashboard:'Dashboard',inbox:'Inbox',important:'Important',promotions:'Promotions',spam:'Spam',social:'Social',updates:'Updates',bin:'Bin',archive:'Archive',logs:'Agent Logs',gmail:'Gmail',notifications:'Notifications',settings:'Settings','safe-review':'Review Replies','fast-analyzer':'Reply Analyzer'};
 
   const NavItem=({id,label,icon,badge,badgeColor,isDot})=>(<button className={`nav-item ${nav===id?'active':''}`} onClick={()=>go(id)} title={label}>{icon}<span className="sb-label">{label}</span>{badge!=null&&!isDot&&<span className={`nav-badge ${badgeColor||''}`}>{badge}</span>}{isDot&&badge>0&&<span className="notif-dot"/>}</button>);
 
@@ -1387,7 +1387,7 @@ function App(){
         </>}
 
         {/* ══ EMAIL LISTS ══ */}
-        {['inbox','important','promotions','spam','bin'].includes(nav)&&<>
+        {['inbox','important','promotions','spam','social','updates','bin','archive'].includes(nav)&&<>
           <div className="action-row">
             <button className="action-btn" onClick={selAll}>{I.check} Select All</button>
             <button className="action-btn" onClick={clearSel}>Clear</button>
