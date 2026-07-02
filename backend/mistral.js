@@ -163,6 +163,13 @@ async function classifyEmail({ subject, snippet, fromAddr, fromName, userOwnEmai
     },
   ];
 
+  // Domain-based override — always correct regardless of AI response
+  const addrLower = (fromAddr || '').toLowerCase();
+  const FORCE_SOCIAL = ['linkedin.com','instagram.com','facebook.com','twitter.com','x.com','github.com','youtube.com','whatsapp.com','discord.com','pinterest.com','snapchat.com','tiktok.com','reddit.com'];
+  const FORCE_UPDATES = ['naukri.com','indeed.com','glassdoor.com','amazon.com','flipkart.com','swiggy.com','zomato.com','paytm.com','phonepe.com','razorpay.com','stripe.com','paypal.com','internshala.com','apna.co','angellist.com','wellfound.com'];
+  if (FORCE_SOCIAL.some(d => addrLower.includes(d))) return 'social';
+  if (FORCE_UPDATES.some(d => addrLower.includes(d))) return 'updates';
+
   try {
     const result = await mistralChat(messages, 10);
     const clean  = result.toLowerCase().replace(/[^a-z]/g, '');

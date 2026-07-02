@@ -918,7 +918,10 @@ function App(){
     if(filter==='important')return emails.filter(e=>e.tag==='important'&&!e.archived&&!e.deleted);
     if(filter==='promotions')return emails.filter(e=>e.tag==='promo'&&!e.archived&&!e.deleted);
     if(filter==='spam')return emails.filter(e=>e.tag==='spam'&&!e.deleted);
+    if(filter==='social')return emails.filter(e=>e.tag==='social'&&!e.archived&&!e.deleted);
+    if(filter==='updates')return emails.filter(e=>e.tag==='updates'&&!e.archived&&!e.deleted);
     if(filter==='bin')return emails.filter(e=>e.deleted);
+    if(filter==='archive')return emails.filter(e=>e.archived&&!e.deleted);
     return emails;
   };
 
