@@ -942,14 +942,13 @@ function App(){
           setFetching(false);return;
         }
         if(!d.success){addLog('red',d.error||'Failed');t(d.error||'Fetch failed','red');break;}
-        if(d.emails)setEmails(d.emails);
+        if(d.emails){setEmails(d.emails);totalFetched=d.emails.length;}
         if(d.stats)setStats(d.stats);
-        totalFetched+=d.fetched||0;
         pageToken=d.nextPageToken||null;
-        if(pageToken) addLog('blue',`Fetched ${totalFetched} so far, loading more…`);
+        if(pageToken) addLog('blue',`Loaded ${totalFetched} emails, fetching more…`);
       } while(pageToken);
-      addLog('green',`Fetched <strong>${totalFetched}</strong> emails total`);
-      t(`Fetched ${totalFetched} emails`,'green');
+      addLog('green',`Loaded <strong>${totalFetched}</strong> emails total`);
+      t(`Loaded ${totalFetched} emails`,'green');
     }catch{t('Network error','red');}
     setFetching(false);
   };
