@@ -94,7 +94,7 @@ function extractBody(payload) {
 }
 
 // ── Fetch messages from inbox ─────────────────────────────────
-async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', saveToken) {
+async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', saveToken, pageToken = null) {
   const auth   = buildAuthorizedClient(tokenRow, saveToken);
   const gmail  = google.gmail({ version: 'v1', auth });
 
@@ -116,36 +116,27 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
     const d = new Date(now); d.setFullYear(d.getFullYear() - 1);
     q = `in:inbox after:${d.toISOString().split('T')[0].replace(/-/g, '/')}`;
   } else if (dateRange && dateRange.startsWith('custom:')) {
-    // format: custom:2025/01/01:2025/12/31
     const parts = dateRange.split(':');
     if (parts[1]) q += ` after:${parts[1]}`;
     if (parts[2]) q += ` before:${parts[2]}`;
   }
   // 'all' = no date filter
 
-  // Cap maxResults
-  const cap = Math.min(parseInt(maxResults) || 250, 250); // 250 safe with metadata format
+  // Fetch one page of 100 message IDs
+  const PAGE_SIZE = 100;
+  const listRes = await gmail.users.messages.list({
+    userId: 'me',
+    maxResults: PAGE_SIZE,
+    q,
+    ...(pageToken ? { pageToken } : {}),
+  });
 
-  // List message IDs with pagination to get newest emails first
-  let messageIds = [];
-  let pageToken = undefined;
-  while (messageIds.length < cap) {
-    const remaining = cap - messageIds.length;
-    const listRes = await gmail.users.messages.list({
-      userId: 'me',
-      maxResults: Math.min(remaining, 100),
-      q,
-      ...(pageToken ? { pageToken } : {}),
-    });
-    const ids = (listRes.data.messages || []).map(m => m.id);
-    messageIds.push(...ids);
-    if (!listRes.data.nextPageToken || ids.length === 0) break;
-    pageToken = listRes.data.nextPageToken;
-  }
+  const messageIds = (listRes.data.messages || []).map(m => m.id);
+  const nextPageToken = listRes.data.nextPageToken || null;
 
-  if (messageIds.length === 0) return [];
+  if (messageIds.length === 0) return { messages: [], nextPageToken: null };
 
-  // Fetch each message in parallel (batched to avoid rate limits)
+  // Fetch each message metadata in parallel batches
   const BATCH = 25;
   const messages = [];
 
@@ -164,7 +155,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   // Sort by internalDate descending (newest first)
   messages.sort((a, b) => parseInt(b.internalDate || 0) - parseInt(a.internalDate || 0));
 
-  return messages.map(msg => {
+  return { messages: messages.map(msg => {
     const headers = {};
     for (const h of (msg.payload?.headers || [])) {
       headers[h.name.toLowerCase()] = h.value;
@@ -197,7 +188,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
       email_time: emailTime,
       internal_date: parseInt(msg.internalDate || 0),
     };
-  });
+  }), nextPageToken };
 }
 
 // ── Build a raw RFC-2822 email (base64url encoded) ────────────

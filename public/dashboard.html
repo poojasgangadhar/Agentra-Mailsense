@@ -930,9 +930,10 @@ function App(){
     setFetching(true);addLog('blue',`Fetching emails (${dateRange})…`);
     try{
       let totalFetched=0;
-      // Fetch in multiple rounds of 250 to get all emails
-      for(let round=0;round<4;round++){
-        const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:250,dateRange})});
+      let pageToken=null;
+      // Paginate using nextPageToken until all emails are fetched
+      do {
+        const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:100,dateRange,pageToken})});
         const d=await res.json();
         if(d.code==='GMAIL_RECONNECT_REQUIRED'){
           setGmailConn(false);
@@ -944,10 +945,9 @@ function App(){
         if(d.emails)setEmails(d.emails);
         if(d.stats)setStats(d.stats);
         totalFetched+=d.fetched||0;
-        // Stop if we got fewer than 250 (means no more emails left)
-        if((d.fetched||0)<250)break;
-        addLog('blue',`Fetched ${totalFetched} so far, loading more…`);
-      }
+        pageToken=d.nextPageToken||null;
+        if(pageToken) addLog('blue',`Fetched ${totalFetched} so far, loading more…`);
+      } while(pageToken);
       addLog('green',`Fetched <strong>${totalFetched}</strong> emails total`);
       t(`Fetched ${totalFetched} emails`,'green');
     }catch{t('Network error','red');}

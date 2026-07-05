@@ -100,14 +100,14 @@ router.post('/gmail-status', requireAuth, async (req, res) => {
 });
 
 router.post('/gmail-fetch', requireAuth, async (req, res) => {
-  const { maxEmails = 100, dateRange = 'all' } = req.body;
+  const { maxEmails = 100, dateRange = 'all', pageToken = null } = req.body;
   const email = req.user.email;
   const tokenRow = await stmts.getToken.get(email);
   if (!tokenRow) return res.status(400).json({ error: 'Gmail not connected.' });
   try {
-    await stmts.insertLog.run(email, 'blue', `Fetching emails from Gmail (${dateRange === 'all' ? 'all time' : dateRange})…`);
+    if (!pageToken) await stmts.insertLog.run(email, 'blue', `Fetching emails from Gmail (${dateRange === 'all' ? 'all time' : dateRange})…`);
     const saveToken = makeSaveToken(email);
-    const messages = await gmailHelper.fetchMessages(tokenRow, parseInt(maxEmails), dateRange, saveToken);
+    const { messages, nextPageToken } = await gmailHelper.fetchMessages(tokenRow, parseInt(maxEmails), dateRange, saveToken, pageToken);
     if (tokenRow.access_token) {
       await stmts.upsertToken.run({
         user_email: email, access_token: tokenRow.access_token,
@@ -220,6 +220,7 @@ router.post('/gmail-fetch', requireAuth, async (req, res) => {
       .map(e => e.id);
     res.json({
       success: true, fetched: messages.length, new_classified: newCount, stats,
+      nextPageToken: nextPageToken || null,
       emails: allEmails.map(row => ({
         id: row.id, gmail_id: row.gmail_id, from: row.from_name || row.from_addr || 'Unknown',
         subject: row.subject || '(no subject)', snippet: row.snippet || '', body: row.body || '',
