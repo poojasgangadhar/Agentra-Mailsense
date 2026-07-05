@@ -124,7 +124,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   // 'all' = no date filter
 
   // Cap maxResults
-  const cap = Math.min(parseInt(maxResults) || 100, 100); // Cap at 100 to avoid Vercel timeout
+  const cap = Math.min(parseInt(maxResults) || 250, 250); // 250 safe with metadata format
 
   // List message IDs with pagination to get newest emails first
   let messageIds = [];
@@ -146,7 +146,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   if (messageIds.length === 0) return [];
 
   // Fetch each message in parallel (batched to avoid rate limits)
-  const BATCH = 20;
+  const BATCH = 25;
   const messages = [];
 
   for (let i = 0; i < messageIds.length; i += BATCH) {

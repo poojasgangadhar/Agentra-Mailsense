@@ -929,19 +929,27 @@ function App(){
     if(!gmailConn)return t('Please connect Gmail first','red');
     setFetching(true);addLog('blue',`Fetching emails (${dateRange})…`);
     try{
-      const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:500,dateRange})});
-      const d=await res.json();
-      if(d.success){
-        // Use fresh data directly from response — no stale state
+      let totalFetched=0;
+      // Fetch in multiple rounds of 250 to get all emails
+      for(let round=0;round<4;round++){
+        const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:250,dateRange})});
+        const d=await res.json();
+        if(d.code==='GMAIL_RECONNECT_REQUIRED'){
+          setGmailConn(false);
+          addLog('red','Gmail connection expired — please reconnect');
+          t('Gmail connection expired. Please reconnect Gmail in Settings.','red');
+          setFetching(false);return;
+        }
+        if(!d.success){addLog('red',d.error||'Failed');t(d.error||'Fetch failed','red');break;}
         if(d.emails)setEmails(d.emails);
         if(d.stats)setStats(d.stats);
-        addLog('green',`Fetched <strong>${d.fetched}</strong> emails`);
-        t(`Fetched ${d.fetched} emails`,'green');
-      }else if(d.code==='GMAIL_RECONNECT_REQUIRED'){
-        setGmailConn(false);
-        addLog('red','Gmail connection expired — please reconnect');
-        t('Gmail connection expired. Please reconnect Gmail in Settings.','red');
-      }else{addLog('red',d.error||'Failed');t(d.error||'Fetch failed','red');}
+        totalFetched+=d.fetched||0;
+        // Stop if we got fewer than 250 (means no more emails left)
+        if((d.fetched||0)<250)break;
+        addLog('blue',`Fetched ${totalFetched} so far, loading more…`);
+      }
+      addLog('green',`Fetched <strong>${totalFetched}</strong> emails total`);
+      t(`Fetched ${totalFetched} emails`,'green');
     }catch{t('Network error','red');}
     setFetching(false);
   };
