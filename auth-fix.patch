@@ -1,0 +1,337 @@
+diff --git a/backend/gmail.js b/backend/gmail.js
+index 0e21a32..c9cb6ec 100644
+--- a/backend/gmail.js
++++ b/backend/gmail.js
+@@ -24,13 +24,13 @@ function createOAuth2Client() {
+ }
+ 
+ // ── Generate the consent URL ──────────────────────────────────
+-function getAuthUrl(stateEmail) {
++function getAuthUrl(state) {
+   const oAuth2Client = createOAuth2Client();
+   return oAuth2Client.generateAuthUrl({
+     access_type: 'offline',
+     prompt:      'consent',
+     scope:       SCOPES,
+-    state:       stateEmail,
++    state,
+   });
+ }
+ 
+diff --git a/backend/middleware/auth.js b/backend/middleware/auth.js
+index f81ab07..d02cee8 100644
+--- a/backend/middleware/auth.js
++++ b/backend/middleware/auth.js
+@@ -42,4 +42,15 @@ function requireAdmin(req, res, next) {
+   next();
+ }
+ 
+-module.exports = { signToken, requireAuth, requireAdmin };
++// Verify a JWT and return its payload, or null if invalid/expired.
++// Used for redirect-based flows (e.g. Google OAuth) where an
++// Authorization header can't be attached.
++function verifyToken(token) {
++  try {
++    return jwt.verify(token, JWT_SECRET);
++  } catch {
++    return null;
++  }
++}
++
++module.exports = { signToken, requireAuth, requireAdmin, verifyToken };
+diff --git a/backend/routes/auth.js b/backend/routes/auth.js
+index d0c8e6b..6427c5a 100644
+--- a/backend/routes/auth.js
++++ b/backend/routes/auth.js
+@@ -4,7 +4,7 @@ const bcrypt   = require('bcryptjs');
+ const { google } = require('googleapis');
+ const { db, stmts, exec, queryOne } = require('../db');
+ const { generateOTP, otpExpiresAt, sendOTPEmail } = require('../mailer');
+-const { signToken } = require('../middleware/auth');
++const { signToken, requireAuth } = require('../middleware/auth');
+ 
+ const router = express.Router();
+ 
+@@ -158,9 +158,10 @@ router.post('/verify-credentials', async (req, res) => {
+   res.json({ success: true });
+ });
+ 
+-router.post('/delete-account', async (req, res) => {
+-  const { email, password } = req.body;
+-  if (!email || !password) return res.status(400).json({ error: 'Email and password required.' });
++router.post('/delete-account', requireAuth, async (req, res) => {
++  const { password } = req.body;
++  const email = req.user.email;
++  if (!password) return res.status(400).json({ error: 'Password required.' });
+   const user = await stmts.getUserByEmail.get(email);
+   if (!user) return res.status(404).json({ error: 'Account not found.' });
+   const valid = await bcrypt.compare(password, user.password);
+@@ -174,10 +175,11 @@ router.post('/delete-account', async (req, res) => {
+   res.json({ success: true, message: 'Account deleted.' });
+ });
+ 
+-router.post('/save-settings', async (req, res) => {
+-  const { email, key, value } = req.body;
+-  if (!email || !key || value === undefined)
+-    return res.status(400).json({ error: 'email, key and value required.' });
++router.post('/save-settings', requireAuth, async (req, res) => {
++  const { key, value } = req.body;
++  const email = req.user.email;
++  if (!key || value === undefined)
++    return res.status(400).json({ error: 'key and value required.' });
+   try {
+     await exec(`INSERT INTO user_settings (user_email, setting_key, setting_value) VALUES (?, ?, ?) ON CONFLICT(user_email, setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = datetime('now')`,
+       email, key, typeof value === 'string' ? value : JSON.stringify(value));
+diff --git a/backend/routes/gmail.js b/backend/routes/gmail.js
+index 8dc272f..ea6d7b8 100644
+--- a/backend/routes/gmail.js
++++ b/backend/routes/gmail.js
+@@ -3,6 +3,7 @@ const express = require('express');
+ const { db, stmts, recomputeStats, markEmailsDeleted, queryOne, exec } = require('../db');
+ const gmailHelper = require('../gmail');
+ const { classifyEmail, generateReply } = require('../mistral');
++const { requireAuth, verifyToken } = require('../middleware/auth');
+ 
+ const router = express.Router();
+ 
+@@ -29,15 +30,20 @@ function formatEmail(row) {
+ }
+ 
+ router.get('/gmail-auth', (req, res) => {
+-  const email = req.query.email;
+-  if (!email) return res.status(400).send('Email required');
+-  res.redirect(gmailHelper.getAuthUrl(email));
++  const token = req.query.token;
++  const payload = token && verifyToken(token);
++  if (!payload?.email) return res.status(401).send('Authentication required.');
++  // Re-use the verified JWT as the OAuth `state` so the callback
++  // can confirm the email without trusting a client-supplied value.
++  res.redirect(gmailHelper.getAuthUrl(token));
+ });
+ 
+ router.get('/oauth2callback', async (req, res) => {
+-  const { code, state: email, error } = req.query;
++  const { code, state: token, error } = req.query;
+   const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+   if (error) return res.redirect(`${APP_URL}/dashboard.html?gmail=error&reason=${error}`);
++  const payload = token && verifyToken(token);
++  const email = payload?.email;
+   if (!code || !email) return res.redirect(`${APP_URL}/dashboard.html?gmail=error&reason=missing_code`);
+   try {
+     const tokens = await gmailHelper.exchangeCode(code);
+@@ -55,9 +61,8 @@ router.get('/oauth2callback', async (req, res) => {
+   }
+ });
+ 
+-router.post('/gmail-status', async (req, res) => {
+-  const { email } = req.body;
+-  if (!email) return res.status(400).json({ error: 'Email required.' });
++router.post('/gmail-status', requireAuth, async (req, res) => {
++  const email = req.user.email;
+   const tokenRow = await stmts.getToken.get(email);
+   if (!tokenRow) return res.json({ connected: false });
+   const emailRows = await stmts.getEmails.all(email);
+@@ -71,9 +76,9 @@ router.post('/gmail-status', async (req, res) => {
+   });
+ });
+ 
+-router.post('/gmail-fetch', async (req, res) => {
+-  const { email, maxEmails = 100, dateRange = 'all' } = req.body;
+-  if (!email) return res.status(400).json({ error: 'Email required.' });
++router.post('/gmail-fetch', requireAuth, async (req, res) => {
++  const { maxEmails = 100, dateRange = 'all' } = req.body;
++  const email = req.user.email;
+   const tokenRow = await stmts.getToken.get(email);
+   if (!tokenRow) return res.status(400).json({ error: 'Gmail not connected.' });
+   try {
+@@ -130,9 +135,10 @@ router.post('/gmail-fetch', async (req, res) => {
+   }
+ });
+ 
+-router.post('/gmail-reply', async (req, res) => {
+-  const { userEmail, emailId, mode, replyTemplate } = req.body;
+-  if (!userEmail || !emailId) return res.status(400).json({ error: 'userEmail and emailId required.' });
++router.post('/gmail-reply', requireAuth, async (req, res) => {
++  const { emailId, mode, replyTemplate } = req.body;
++  const userEmail = req.user.email;
++  if (!emailId) return res.status(400).json({ error: 'emailId required.' });
+   const tokenRow = await stmts.getToken.get(userEmail);
+   if (!tokenRow) return res.status(400).json({ error: 'Gmail not connected.' });
+   const emailRow = await queryOne('SELECT * FROM emails WHERE id = ? AND user_email = ?', emailId, userEmail);
+@@ -162,9 +168,10 @@ router.post('/gmail-reply', async (req, res) => {
+   }
+ });
+ 
+-router.post('/gmail-action', async (req, res) => {
+-  const { userEmail, emailIds, action } = req.body;
+-  if (!userEmail || !emailIds?.length) return res.status(400).json({ error: 'userEmail and emailIds required.' });
++router.post('/gmail-action', requireAuth, async (req, res) => {
++  const { emailIds, action } = req.body;
++  const userEmail = req.user.email;
++  if (!emailIds?.length) return res.status(400).json({ error: 'emailIds required.' });
+   const tokenRow = await stmts.getToken.get(userEmail);
+   try {
+     let count = 0;
+@@ -204,9 +211,8 @@ router.post('/gmail-action', async (req, res) => {
+   }
+ });
+ 
+-router.post('/gmail-disconnect', async (req, res) => {
+-  const { email } = req.body;
+-  if (!email) return res.status(400).json({ error: 'Email required.' });
++router.post('/gmail-disconnect', requireAuth, async (req, res) => {
++  const email = req.user.email;
+   const tokenRow = await stmts.getToken.get(email);
+   if (tokenRow?.access_token) await gmailHelper.revokeToken(tokenRow.access_token).catch(() => {});
+   await stmts.deleteToken.run(email);
+@@ -214,9 +220,10 @@ router.post('/gmail-disconnect', async (req, res) => {
+   res.json({ success: true });
+ });
+ 
+-router.post('/gmail-generate-reply', async (req, res) => {
+-  const { userEmail, emailId, replyTemplate, customContext } = req.body;
+-  if (!userEmail || !emailId) return res.status(400).json({ error: 'userEmail and emailId required.' });
++router.post('/gmail-generate-reply', requireAuth, async (req, res) => {
++  const { emailId, replyTemplate, customContext } = req.body;
++  const userEmail = req.user.email;
++  if (!emailId) return res.status(400).json({ error: 'emailId required.' });
+   const emailRow = await queryOne('SELECT * FROM emails WHERE id = ? AND user_email = ?', emailId, userEmail);
+   if (!emailRow) return res.status(404).json({ error: 'Email not found.' });
+   try {
+diff --git a/public/dashboard.html b/public/dashboard.html
+index 0689504..63a52fb 100644
+--- a/public/dashboard.html
++++ b/public/dashboard.html
+@@ -503,7 +503,21 @@ input,textarea,select,button{font-size:14px !important;}
+ <script type="text/babel">
+ const { useState, useEffect, useRef } = React;
+ 
+-if (!sessionStorage.getItem('is_logged_in')) { window.location.href = '/'; }
++const jwtToken = sessionStorage.getItem('jwt_token');
++if (!sessionStorage.getItem('is_logged_in') || !jwtToken) { window.location.href = '/'; }
++
++// fetch wrapper that attaches the JWT and sends the user back to
++// login if the session is invalid/expired.
++async function authFetch(url, options = {}) {
++  const headers = { ...(options.headers || {}), 'Authorization': `Bearer ${jwtToken}` };
++  const res = await fetch(url, { ...options, headers });
++  if (res.status === 401) {
++    sessionStorage.clear();
++    window.location.href = '/';
++    throw new Error('Session expired');
++  }
++  return res;
++}
+ 
+ const NOTIFS = [
+   { id:1, title:'Welcome to Agentra MailSense!', desc:'Connect your Gmail to start automating your emails.', time:'Just now', unread:true },
+@@ -608,7 +622,7 @@ function ReplyModal({email, userEmail, replyTemplate, onClose, onSend}){
+   const gen=async()=>{
+     setGenerating(true);setErr('');
+     try{
+-      const res=await fetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId:email.id,replyTemplate,customContext:context||undefined})});
++      const res=await authFetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId:email.id,replyTemplate,customContext:context||undefined})});
+       const d=await res.json();
+       if(d.success)setReply(d.reply);
+       else setErr(d.error||'Generation failed');
+@@ -664,7 +678,7 @@ function FastAnalyzer({emails,userEmail,replyTemplate,t}){
+     if(previews[em.id]){setExpanded(em.id);return;}
+     setLoading(l=>({...l,[em.id]:true}));
+     try{
+-      const res=await fetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId:em.id,replyTemplate})});
++      const res=await authFetch('/api/gmail-generate-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId:em.id,replyTemplate})});
+       const d=await res.json();
+       if(d.success)setPreviews(p=>({...p,[em.id]:d.reply}));
+       else setPreviews(p=>({...p,[em.id]:'Could not generate preview: '+d.error}));
+@@ -821,7 +835,7 @@ function App(){
+   },[showOB]);
+ 
+   const loadStatus=async()=>{
+-    try{const res=await fetch('/api/gmail-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail})});const d=await res.json();if(d.connected){setGmailConn(true);if(d.emails)setEmails(d.emails);if(d.stats)setStats(d.stats);if(d.logs)setLogs(d.logs);}}catch{}
++    try{const res=await authFetch('/api/gmail-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});const d=await res.json();if(d.connected){setGmailConn(true);if(d.emails)setEmails(d.emails);if(d.stats)setStats(d.stats);if(d.logs)setLogs(d.logs);}}catch{}
+   };
+ 
+   const addLog=(dot,text)=>{const time=new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',hour12:false});setLogs(l=>[{id:Date.now(),time,dot,text},...l].slice(0,80));};
+@@ -840,7 +854,7 @@ function App(){
+     if(!gmailConn)return t('Please connect Gmail first','red');
+     setFetching(true);addLog('blue',`Fetching emails (${dateRange})…`);
+     try{
+-      const res=await fetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail,maxEmails:500,dateRange})});
++      const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:500,dateRange})});
+       const d=await res.json();
+       if(d.success){
+         // Use fresh data directly from response — no stale state
+@@ -862,7 +876,7 @@ function App(){
+     // Fetch fresh emails directly from backend — do NOT rely on stale React state
+     let freshEmails=[], pendingIds=[];
+     try{
+-      const res=await fetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail,maxEmails:500,dateRange})});
++      const res=await authFetch('/api/gmail-fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({maxEmails:500,dateRange})});
+       const d=await res.json();
+       if(d.success){
+         addLog('green',`Fetched <strong>${d.fetched}</strong> emails`);
+@@ -885,7 +899,7 @@ function App(){
+       for(const emailId of pendingIds.slice(0,10)){
+         const em=freshEmails.find(e=>e.id===emailId);
+         try{
+-          const res=await fetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId,mode:'fast',replyTemplate})});
++          const res=await authFetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId,mode:'fast',replyTemplate})});
+           const d=await res.json();
+           if(d.success){sent++;addLog('green',`⚡ Auto-reply sent to <strong>${em?.from||emailId}</strong>`);}
+           else{failed++;addLog('amber',`Skipped ${em?.from||emailId}: ${d.message||'already replied'}`);}
+@@ -898,7 +912,7 @@ function App(){
+   };
+ 
+   const handleSendReply=async(emailId,customReply)=>{
+-    try{const res=await fetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailId,mode:'fast',replyTemplate:customReply})});const d=await res.json();if(d.success){addLog('green','Reply confirmed & sent');t('Reply sent!','green');await loadStatus();}else t(d.error||'Failed','red');}
++    try{const res=await authFetch('/api/gmail-reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailId,mode:'fast',replyTemplate:customReply})});const d=await res.json();if(d.success){addLog('green','Reply confirmed & sent');t('Reply sent!','green');await loadStatus();}else t(d.error||'Failed','red');}
+     catch{t('Network error','red');}
+   };
+ const doDelete = async (overrideIds) => {
+@@ -914,11 +928,10 @@ const doDelete = async (overrideIds) => {
+   if (!confirmed) return;
+ 
+   try {
+-    const response = await fetch('/api/gmail-action', {
++    const response = await authFetch('/api/gmail-action', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+-        userEmail,
+         emailIds: ids,
+         action: 'trash'
+       })
+@@ -954,7 +967,7 @@ const doDelete = async (overrideIds) => {
+     const n=ids.length;
+     if(!n){t('No emails found in selected categories','amber');setBulkDeleting(false);setShowBulkDelModal(false);return;}
+     try{
+-      await fetch('/api/gmail-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userEmail,emailIds:ids,action:'trash'})});
++      await authFetch('/api/gmail-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emailIds:ids,action:'trash'})});
+       setEmails(prev=>prev.map(e=>ids.includes(e.id)?{...e,deleted:true}:e));
+       addLog('red',`Bulk deleted <strong>${n}</strong> email${n>1?'s':''} across selected categories`);
+       t(`${n} email${n>1?'s':''} deleted`,'red');
+@@ -969,12 +982,12 @@ const doDelete = async (overrideIds) => {
+     if(!delEmail||!delPw){setDelErr('Both fields required.');return;}
+     if(delEmail.toLowerCase()!==userEmail.toLowerCase()){setDelErr('Email does not match your account.');return;}
+     setDelLoading(true);
+-    try{const res=await fetch('/api/delete-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:delEmail,password:delPw})});const d=await res.json();if(d.success){localStorage.clear();sessionStorage.clear();window.location.href='/';}else setDelErr(d.error||'Failed.');}
++    try{const res=await authFetch('/api/delete-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:delPw})});const d=await res.json();if(d.success){localStorage.clear();sessionStorage.clear();window.location.href='/';}else setDelErr(d.error||'Failed.');}
+     catch{setDelErr('Network error.');}
+     setDelLoading(false);
+   };
+-  const connectGmail=()=>{window.location.href=`/api/gmail-auth?email=${encodeURIComponent(userEmail)}`;};
+-  const disconnectGmail=async()=>{await fetch('/api/gmail-disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail})});setGmailConn(false);setEmails([]);setStats({total:0,important:0,promo:0,spam:0,replied:0});t('Gmail disconnected','amber');};
++  const connectGmail=()=>{window.location.href=`/api/gmail-auth?token=${encodeURIComponent(jwtToken)}`;};
++  const disconnectGmail=async()=>{await authFetch('/api/gmail-disconnect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});setGmailConn(false);setEmails([]);setStats({total:0,important:0,promo:0,spam:0,replied:0});t('Gmail disconnected','amber');};
+   const toggleSel=id=>setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
+   const selAll=()=>setSelected(filteredEmails(nav).map(e=>e.id));
+   const clearSel=()=>setSelected([]);
+@@ -1250,7 +1263,7 @@ const doDelete = async (overrideIds) => {
+             <div className="panel-header"><div className="panel-title">Auto-Delete Settings</div></div>
+             <div style={{padding:'11px 14px',display:'flex',flexDirection:'column',gap:7}}>
+               {[{key:'spam',lbl:'Auto-delete Spam after',sub:'Spam emails will be moved to Bin'},{key:'promo',lbl:'Auto-delete Promotions after',sub:'Promo emails will be moved to Bin'},{key:'bin',lbl:'Auto-empty Bin after',sub:'Bin emails permanently deleted'},{key:'all',lbl:'Auto-delete All Mails after',sub:'All emails across every category will be deleted'}].map(s=>(<div key={s.key} className="settings-row" style={s.key==='all'?{border:'1px solid rgba(239,68,68,.35)',background:'rgba(239,68,68,.04)'}:{}}><div><div className="sr-label" style={s.key==='all'?{color:'#ef4444'}:{}}>{s.lbl}</div><div className="sr-sub">{s.sub}</div></div><select className="sel-drop" value={autoDelete[s.key]||'never'} onChange={e=>setAutoDelete(p=>({...p,[s.key]:e.target.value}))}><option value="never">Never</option><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>))}
+-              <button className="action-btn primary" style={{alignSelf:'flex-start',marginTop:3}} onClick={async()=>{localStorage.setItem('ms_autodelete',JSON.stringify(autoDelete));try{await fetch('/api/save-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:userEmail,key:'auto_delete',value:autoDelete})});}catch{}t('Auto-delete settings saved!','green');}}>{I.check} Save Settings</button>
++              <button className="action-btn primary" style={{alignSelf:'flex-start',marginTop:3}} onClick={async()=>{localStorage.setItem('ms_autodelete',JSON.stringify(autoDelete));try{await authFetch('/api/save-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'auto_delete',value:autoDelete})});}catch{}t('Auto-delete settings saved!','green');}}>{I.check} Save Settings</button>
+             </div>
+           </div>
+           <div className="panel">
