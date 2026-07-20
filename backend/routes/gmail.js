@@ -413,15 +413,21 @@ router.post('/undo-auto-archive', requireAuth, async (req, res) => {
     res.status(500).json({ error: err.message || 'Undo failed.' });
   }
 });
-
 router.post('/gmail-disconnect', requireAuth, async (req, res) => {
   const email = req.user.email;
   const tokenRow = await stmts.getToken.get(email);
   if (tokenRow?.access_token) await gmailHelper.revokeToken(tokenRow.access_token).catch(() => {});
   await stmts.deleteToken.run(email);
+  // Clear cached data from the previously connected Gmail account so that
+  // connecting a different Gmail account afterwards starts from a clean
+  // slate instead of showing the old account's messages/stats.
+  await exec('DELETE FROM emails WHERE user_email = ?', email);
+  await exec('DELETE FROM agent_stats WHERE user_email = ?', email);
+  await exec("DELETE FROM user_settings WHERE user_email = ? AND setting_key = 'last_auto_archived'", email);
   await stmts.insertLog.run(email, 'amber', 'Gmail disconnected');
   res.json({ success: true });
 });
+
 
 router.post('/gmail-generate-reply', requireAuth, async (req, res) => {
   const { emailId, replyTemplate, customContext } = req.body;
