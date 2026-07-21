@@ -29,7 +29,7 @@ function getAuthUrl(stateEmail) {
   return oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt:      'consent',
-    scope:       SCOPES,
+    scope:       SCOPES
     state:       stateEmail,
   });
 }
@@ -99,11 +99,7 @@ async function fetchMessages(tokenRow, maxResults = 100, dateRange = 'all', save
   const gmail  = google.gmail({ version: 'v1', auth });
 
   // Build Gmail search query based on date range
- // Before (broken):
-let q = 'in:inbox newer_first:true';
-
-// After (fixed):
-let q = 'in:inbox';
+ let q = 'in:inbox';
   const now = new Date();
   if (dateRange === 'yesterday') {
     const d = new Date(now); d.setDate(d.getDate() - 1);
