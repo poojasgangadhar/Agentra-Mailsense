@@ -29,7 +29,7 @@ function getAuthUrl(stateEmail) {
   return oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt:      'consent',
-    scope:       SCOPES
+    scope:       SCOPES,
     state:       stateEmail,
   });
 }
