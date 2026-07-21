@@ -191,7 +191,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);tra
 
 /* Panels */
 .two-col{display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px;}
-.panel{background:linear-gradient(135deg,rgba(17,22,39,0.85),rgba(12,15,29,0.9));border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:12px;backdrop-filter:blur(10px);}
+.panel{background:linear-gradient(135deg,var(--glass-grad1),var(--glass-grad2));border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:12px;backdrop-filter:blur(10px);}
 .panel-header{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .panel-title{font-size:.8rem;font-weight:600;color:var(--text);flex:1;}
 .panel-badge{font-size:.63rem;font-weight:500;padding:2px 7px;border-radius:9px;background:var(--surface2);color:var(--text-muted);border:1px solid var(--border);}
@@ -1291,7 +1291,6 @@ function App(){
         <span className="sb-sec">System</span>
         <NavItem id="notifications" label="Notifications" icon={I.bell} badge={unread} isDot={true}/>
         <NavItem id="logs" label="Agent Logs" icon={I.log}/>
-        <NavItem id="settings" label="Settings" icon={I.settings}/>
       </nav>
 
       <div className="mode-tgl">
