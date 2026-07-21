@@ -15,10 +15,16 @@ if (!process.env.TURSO_URL || !process.env.TURSO_TOKEN) {
 // JSON 500.
 let db;
 if (process.env.TURSO_URL && process.env.TURSO_TOKEN) {
-  db = createClient({
-    url: process.env.TURSO_URL,
-    authToken: process.env.TURSO_TOKEN,
-  });
+  try {
+    db = createClient({
+      url: process.env.TURSO_URL,
+      authToken: process.env.TURSO_TOKEN,
+    });
+  } catch (err) {
+    console.error('[db] FATAL: TURSO_URL is set but invalid:', err.message, '— make sure it includes the libsql:// (or https://) prefix.');
+    const configError = () => Promise.reject(new Error(`Database not configured: TURSO_URL is malformed (${err.message}).`));
+    db = { execute: configError, executeMultiple: configError };
+  }
 } else {
   const configError = () => Promise.reject(new Error('Database not configured: TURSO_URL/TURSO_TOKEN env vars are missing.'));
   db = { execute: configError, executeMultiple: configError };
