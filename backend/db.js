@@ -69,6 +69,71 @@ const SCHEMA = `
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (user_email, setting_key)
   );
+
+  -- ── AI Appointment Booking (Phase 1) ──────────────────────────
+  CREATE TABLE IF NOT EXISTS calendar_connections (
+    id TEXT PRIMARY KEY, user_email TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'google',
+    provider_account_email TEXT,
+    access_token TEXT, refresh_token TEXT, token_expiry TEXT, scope TEXT,
+    calendar_id TEXT DEFAULT 'primary',
+    is_primary INTEGER NOT NULL DEFAULT 1,
+    sync_status TEXT NOT NULL DEFAULT 'active',
+    connected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS availability_rules (
+    id TEXT PRIMARY KEY, user_email TEXT NOT NULL,
+    day_of_week INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata',
+    buffer_before_minutes INTEGER NOT NULL DEFAULT 0,
+    buffer_after_minutes INTEGER NOT NULL DEFAULT 0,
+    max_meetings_per_day INTEGER,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS meeting_types (
+    id TEXT PRIMARY KEY, user_email TEXT NOT NULL,
+    name TEXT NOT NULL, duration_minutes INTEGER NOT NULL,
+    location_type TEXT NOT NULL DEFAULT 'google_meet',
+    description TEXT, color TEXT DEFAULT '#4f6ef7',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS booking_links (
+    id TEXT PRIMARY KEY, user_email TEXT NOT NULL,
+    meeting_type_id TEXT, slug TEXT UNIQUE NOT NULL,
+    is_public INTEGER NOT NULL DEFAULT 1, requires_approval INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS meetings (
+    id TEXT PRIMARY KEY, user_email TEXT NOT NULL,
+    meeting_type_id TEXT, calendar_connection_id TEXT,
+    external_event_id TEXT, title TEXT,
+    start_time TEXT NOT NULL, end_time TEXT NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata',
+    status TEXT NOT NULL DEFAULT 'pending',
+    source TEXT NOT NULL DEFAULT 'ai_email', source_email_id TEXT,
+    meeting_link TEXT, is_recurring INTEGER NOT NULL DEFAULT 0, recurrence_rule TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS meeting_attendees (
+    id TEXT PRIMARY KEY, meeting_id TEXT NOT NULL,
+    email TEXT NOT NULL, name TEXT,
+    is_organizer INTEGER NOT NULL DEFAULT 0, rsvp_status TEXT NOT NULL DEFAULT 'pending', tag TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE IF NOT EXISTS ai_scheduling_sessions (
+    id TEXT PRIMARY KEY, user_email TEXT NOT NULL,
+    email_thread_id TEXT NOT NULL, meeting_id TEXT,
+    status TEXT NOT NULL DEFAULT 'negotiating',
+    proposed_slots TEXT, extracted_intent TEXT,
+    auto_mode INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `;
 
 function toArgs(sql, args) {
@@ -167,6 +232,15 @@ const stmts = {
   insertLog:        prepare('INSERT INTO agent_logs (user_email, dot_color, message) VALUES (?, ?, ?)'),
   getLogs:          prepare('SELECT * FROM agent_logs WHERE user_email = ? ORDER BY id DESC LIMIT 100'),
   upsertStats:      prepare("INSERT INTO agent_stats (user_email, total, important, promo, spam, social, updates, replied) VALUES ($user_email, $total, $important, $promo, $spam, $social, $updates, $replied) ON CONFLICT(user_email) DO UPDATE SET total = excluded.total, important = excluded.important, promo = excluded.promo, spam = excluded.spam, social = excluded.social, updates = excluded.updates, replied = excluded.replied, updated_at = datetime('now')"),
+
+  // ── Calendar connections (Phase 1 — AI Appointment Booking) ──
+  getCalendarConnection:     prepare("SELECT * FROM calendar_connections WHERE user_email = ? AND provider = ? ORDER BY is_primary DESC, connected_at ASC LIMIT 1"),
+  getCalendarConnections:    prepare('SELECT * FROM calendar_connections WHERE user_email = ? ORDER BY is_primary DESC, connected_at ASC'),
+  getCalendarConnectionById: prepare('SELECT * FROM calendar_connections WHERE id = ?'),
+  insertCalendarConnection:  prepare('INSERT INTO calendar_connections (id, user_email, provider, provider_account_email, access_token, refresh_token, token_expiry, scope, calendar_id, is_primary) VALUES ($id, $user_email, $provider, $provider_account_email, $access_token, $refresh_token, $token_expiry, $scope, $calendar_id, $is_primary)'),
+  updateCalendarTokens:      prepare("UPDATE calendar_connections SET access_token = $access_token, refresh_token = COALESCE($refresh_token, refresh_token), token_expiry = $token_expiry, scope = $scope, sync_status = 'active', updated_at = datetime('now') WHERE id = $id"),
+  markCalendarSyncError:     prepare("UPDATE calendar_connections SET sync_status = 'error', updated_at = datetime('now') WHERE id = ?"),
+  deleteCalendarConnection:  prepare('DELETE FROM calendar_connections WHERE id = ? AND user_email = ?'),
 };
 
 const MIGRATIONS = [
